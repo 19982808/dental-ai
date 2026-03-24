@@ -1,41 +1,48 @@
-const chatBox = document.getElementById("chat-box");
-
-function addMessage(text, sender) {
-  const msg = document.createElement("div");
-  msg.classList.add("message", sender);
-  msg.innerText = text;
-  chatBox.appendChild(msg);
-  chatBox.scrollTop = chatBox.scrollHeight;
-}
+const API_KEY = "PASTE_YOUR_API_KEY_HERE";
 
 async function sendMessage() {
-  const input = document.getElementById("user-input");
-  const message = input.value.trim();
+  let input = document.getElementById("user-input");
+  let message = input.value.trim();
+  let chat = document.getElementById("chat-box");
 
   if (!message) return;
 
-  addMessage(message, "user");
+  chat.innerHTML += `<p><b>You:</b> ${message}</p>`;
   input.value = "";
 
-  // Temporary fake AI (we'll connect real AI next)
-  let reply = getDentalReply(message);
+  try {
+    let response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${API_KEY}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: `You are a professional dental clinic receptionist.
+You help patients with:
+- booking appointments
+- explaining treatments
+- giving friendly advice
 
-  addMessage(reply, "ai");
-}
+Be polite, short, and helpful.
 
-function getDentalReply(msg) {
-  msg = msg.toLowerCase();
+Patient: ${message}`
+            }]
+          }]
+        })
+      }
+    );
 
-  if (msg.includes("pain")) {
-    return "You may need a dental checkup. This could be a cavity or infection.";
-  } 
-  else if (msg.includes("price")) {
-    return "Consultation is around KES 1,000–2,000 depending on the clinic.";
-  } 
-  else if (msg.includes("book")) {
-    return "Sure! Please provide your name and preferred date.";
-  } 
-  else {
-    return "Can you describe your dental issue in more detail?";
+    let data = await response.json();
+
+    let reply = data.candidates[0].content.parts[0].text;
+
+    chat.innerHTML += `<p><b>AI:</b> ${reply}</p>`;
+
+  } catch (error) {
+    chat.innerHTML += `<p><b>AI:</b> Sorry, something went wrong.</p>`;
   }
 }
