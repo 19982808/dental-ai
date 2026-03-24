@@ -1,4 +1,4 @@
-const API_KEY = "PASTE_YOUR_API_KEY_HERE";
+const API_KEY = "AIzaSyCgJl7AgrFY4yDvhk6KJXYqLDSA9e_gzCo";
 
 async function sendMessage() {
   let input = document.getElementById("user-input");
