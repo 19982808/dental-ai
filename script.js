@@ -5,12 +5,13 @@ const API_KEY = "AIzaSyDQLQnELoeNGQ08JuxF80wGiRoSIFcOhO4";
 
 // 🔥 FIREBASE CONFIG (PASTE YOURS HERE)
 const firebaseConfig = {
-  apiKey: "YOUR_FIREBASE_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "XXXX",
-  appId: "XXXX"
+  apiKey: "AIzaSyBeKmA7f8vHyp9ixFXv0B4mINmanVNvVGA",
+  authDomain: "rynardental-68613.firebaseapp.com",
+  projectId: "rynardental-68613",
+  storageBucket: "rynardental-68613.firebasestorage.app",
+  messagingSenderId: "789923911514",
+  appId: "1:789923911514:web:da65c19f7c8c7060964563",
+  measurementId: "G-ZLVKGF0NWS"
 };
 
 // ==========================
