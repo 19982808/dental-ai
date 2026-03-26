@@ -1,135 +1,27 @@
+// ==========================
+// 🔐 CONFIG
+// ==========================
 const API_KEY = "AIzaSyDQLQnELoeNGQ08JuxF80wGiRoSIFcOhO4"; 
-const chatBox = document.getElementById("chat-box");
-const typingIndicator = document.getElementById("typing-indicator");
-const sendSound = document.getElementById("sendSound");
-
-let bookingStep = 0;
-let bookingData = {};
-
-// ADD MESSAGE
-function addMessage(text, sender){
-  const msg = document.createElement("div");
-  msg.classList.add("message", sender);
-  msg.innerText = text;
-  chatBox.appendChild(msg);
-  chatBox.scrollTop = chatBox.scrollHeight;
-}
-
-// DEEP MASCULINE VOICE
-function speak(text){
-  const speech = new SpeechSynthesisUtterance(text);
-  const voices = speechSynthesis.getVoices();
-  const preferredVoice = voices.find(v=>v.name.includes("Google UK English Male")) 
-      || voices.find(v=>v.name.toLowerCase().includes("male")) 
-      || voices[0];
-  speech.voice = preferredVoice;
-  speech.pitch = 0.55;  // extra deep
-  speech.rate = 0.85;
-  speech.volume = 1;
-  speechSynthesis.cancel();
-  speechSynthesis.speak(speech);
-}
-
-// SPEECH TO TEXT
-function startListening(){
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if(!SpeechRecognition){ alert("Voice input not supported"); return; }
-  const recognition = new SpeechRecognition();
-  recognition.lang="en-US";
-  recognition.onresult = function(event){
-    const text = event.results[0][0].transcript;
-    document.getElementById("user-input").value = text;
-    sendMessage();
-  };
-  recognition.start();
-}
-
-// MAIN SEND FUNCTION
-async function sendMessage(){
-  const input = document.getElementById("user-input");
-  const message = input.value.trim();
-  if(!message) return;
-
-  addMessage(message, "user");
-  input.value="";
-  if(sendSound) sendSound.play();
-
-  // BOOKING FLOW
-  if(bookingStep===1){
-    bookingData.name = message;
-    bookingStep=2;
-    const reply="Great! What date would you like to book?";
-    addMessage(reply,"ai"); speak(reply);
-    return;
-  }
-  if(bookingStep===2){
-    bookingData.date=message;
-    bookingStep=0;
-    // STORE BOOKINGS
-    let bookings = JSON.parse(localStorage.getItem("bookings")) || [];
-    bookings.push(bookingData);
-    localStorage.setItem("bookings",JSON.stringify(bookings));
-
-    const confirmation = `Booking confirmed! Name: ${bookingData.name}, Date: ${bookingData.date}`;
-    addMessage(confirmation,"ai"); speak(confirmation);
-
-    // WHATSAPP LEAD
-    const phoneNumber = "254757902314"; // your number
-    const whatsappMsg=`Hello, I want to confirm my dental booking. Name: ${bookingData.name}, Date: ${bookingData.date}`;
-    const whatsappURL = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(whatsappMsg)}`;
-    window.open(whatsappURL,"_blank");
-
-    bookingData={};
-    return;
-  }
-  if(message.toLowerCase().includes("book")){
-    bookingStep=1;
-    const reply="Sure! What's your name?";
-    addMessage(reply,"ai"); speak(reply);
-    return;
-  }
-
-  // TYPING DOTS
-  if(typingIndicator) typingIndicator.classList.remove("hidden");
-
-  try{
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${API_KEY}`,
-      {
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({
-          contents:[{
-            parts:[{
-              text:`You are an expert dental AI assistant. Be friendly, slightly humorous, professional, and knowledgeable about teeth, dental hygiene, and procedures. Greet the user, provide realistic advice, and encourage bookings. Patient: ${message}`
-            }]
-          }]
-        })
-      }
-    );
-    const data = await response.json();
-
-    if(typingIndicator) typingIndicator.classList.add("hidden");
-
-    let reply="Sorry, something went wrong. Please try again.";
-    if(data && data.candidates && data.candidates[0]?.content?.parts[0]?.text){
-      reply = data.candidates[0].content.parts[0].text;
-    }
-    addMessage(reply,"ai");
-    speak(reply);
-
-  } catch(e){
-    console.error(e);
-    if(typingIndicator) typingIndicator.classList.add("hidden");
-    const errMsg="Network error. Please check your connection.";
-    addMessage(errMsg,"ai");
-    speak(errMsg);
-  }
-}
-// BOOKINGS STORAGE
+// ==========================
+// 💾 BOOKINGS STORAGE
+// ==========================
 let bookings = JSON.parse(localStorage.getItem('bookings')) || [];
 
-// TOGGLE ADMIN
+function saveBookings(){
+  localStorage.setItem('bookings', JSON.stringify(bookings));
+}
+
+// ==========================
+// 🧾 ADD BOOKING
+// ==========================
+function addBooking(name, date){
+  bookings.push({ name, date });
+  saveBookings();
+}
+
+// ==========================
+// 📊 ADMIN DASHBOARD
+// ==========================
 function toggleAdmin(){
   const chat = document.getElementById('chatView');
   const admin = document.getElementById('adminView');
@@ -144,7 +36,6 @@ function toggleAdmin(){
   }
 }
 
-// RENDER BOOKINGS
 function renderBookings(){
   const body = document.getElementById('bookingBody');
   const empty = document.getElementById('emptyMsg');
@@ -172,17 +63,164 @@ function renderBookings(){
   });
 }
 
-// DELETE
 function deleteBooking(i){
   if(confirm('Delete booking?')){
     bookings.splice(i,1);
-    localStorage.setItem('bookings', JSON.stringify(bookings));
+    saveBookings();
     renderBookings();
   }
 }
 
-// ADD BOOKING (CALL THIS FROM AI)
-function addBooking(name, date){
-  bookings.push({name, date});
-  localStorage.setItem('bookings', JSON.stringify(bookings));
+// ==========================
+// 💬 CHAT SYSTEM
+// ==========================
+function addMessage(text, sender){
+  const chat = document.getElementById("chat-box");
+  const div = document.createElement("div");
+
+  div.className = "message " + sender;
+  div.innerText = text;
+
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function showTyping(){
+  document.getElementById("typing-indicator").classList.remove("hidden");
+}
+
+function hideTyping(){
+  document.getElementById("typing-indicator").classList.add("hidden");
+}
+
+// ==========================
+// 🎤 VOICE INPUT
+// ==========================
+function startListening(){
+  const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+  recognition.lang = "en-US";
+
+  recognition.onresult = function(event){
+    document.getElementById("user-input").value = event.results[0][0].transcript;
+    sendMessage();
+  };
+
+  recognition.start();
+}
+
+// ==========================
+// 🔊 VOICE OUTPUT (DEEP MALE)
+// ==========================
+function speak(text){
+  const speech = new SpeechSynthesisUtterance(text);
+
+  speech.pitch = 0.5;   // deeper
+  speech.rate = 0.85;   // slower
+  speech.volume = 1;
+
+  const voices = speechSynthesis.getVoices();
+  speech.voice = voices.find(v => v.name.toLowerCase().includes("male")) || voices[0];
+
+  speechSynthesis.speak(speech);
+}
+
+// ==========================
+// 🧠 GEMINI AI (RYNAR)
+// ==========================
+async function getGeminiResponse(userMessage){
+
+  const systemPrompt = `
+You are Rynar — a confident, calm, masculine dental AI assistant.
+
+Tone:
+- Smooth, intelligent, slightly seductive
+- Friendly and professional
+- Slight humor when appropriate
+
+Skills:
+- Dentistry expert
+- Customer care
+- Booking assistant
+
+Goal:
+- Help users with dental problems
+- Guide them professionally
+- Encourage booking naturally
+`;
+
+  const response = await fetch(
+    "https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=" + API_KEY,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: systemPrompt + "\nUser: " + userMessage
+          }]
+        }]
+      })
+    }
+  );
+
+  const data = await response.json();
+
+  return data?.candidates?.[0]?.content?.parts?.[0]?.text 
+    || "I’m here… tell me more so I can help you properly.";
+}
+
+// ==========================
+// 📲 WHATSAPP INTEGRATION
+// ==========================
+function sendToWhatsApp(name, date){
+  const phone = "254757902314"; // your number
+
+  const text = `Hello, I'd like to confirm my dental booking.\nName: ${name}\nDate: ${date}`;
+
+  const url = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+  window.open(url, "_blank");
+}
+
+// ==========================
+// 🚀 SEND MESSAGE
+// ==========================
+async function sendMessage(){
+  const input = document.getElementById("user-input");
+  const message = input.value.trim();
+  if(!message) return;
+
+  addMessage(message, "user");
+  input.value = "";
+
+  showTyping();
+
+  try {
+    const reply = await getGeminiResponse(message);
+
+    hideTyping();
+    addMessage(reply, "ai");
+    speak(reply);
+
+    // 🔥 SMART BOOKING DETECTION
+    if(message.toLowerCase().includes("book")){
+      const name = "Patient";
+      const date = new Date().toLocaleDateString();
+
+      addBooking(name, date);
+
+      setTimeout(()=>{
+        addMessage("I've scheduled that for you. Want me to confirm it on WhatsApp? 😉", "ai");
+      }, 800);
+
+      setTimeout(()=>{
+        sendToWhatsApp(name, date);
+      }, 1500);
+    }
+
+  } catch (err) {
+    hideTyping();
+
+    addMessage("Hmm… something isn’t connecting right. Try again in a moment.", "ai");
+    console.error(err);
+  }
 }
