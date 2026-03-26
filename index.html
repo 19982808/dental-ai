@@ -1,67 +1,56 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Elite Dental AI</title>
 
   <!-- Google Font -->
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="style.css" />
+  <!-- CSS -->
+  <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-  <div class="app">
+<div class="app">
 
-    <!-- HEADER -->
-    <div class="header">
-      <div class="logo">🦷</div>
-      <div>
-        <h1>Elite Dental AI</h1>
-        <p>Your Private Clinic Assistant</p>
-      </div>
+  <!-- HEADER -->
+  <div class="header">
+    <div class="logo">🦷</div>
+    <div>
+      <h1>Concoct Dental AI</h1>
+      <p>Premium Smile Experience</p>
     </div>
-
-    <!-- CHAT -->
-    <div id="chat-box">
-
-      <!-- Welcome Message -->
-      <div class="message ai">
-        Welcome. I'm your private dental assistant.  
-        Describe your issue or say “book” to schedule an appointment.
-      </div>
-
-    </div>
-
-    <!-- TYPING INDICATOR -->
-    <div id="typing-indicator" class="typing hidden">
-      <span></span><span></span><span></span>
-    </div>
-
-    <!-- INPUT -->
-    <div class="input-area">
-      
-      <input 
-        id="user-input" 
-        type="text" 
-        placeholder="Type or speak..."
-        onkeypress="if(event.key === 'Enter') sendMessage()"
-      />
-
-      <button onclick="sendMessage()">➤</button>
-
-      <button class="mic" onclick="startListening()">🎤</button>
-
-    </div>
-
   </div>
 
-  <!-- SOFT CLICK SOUND -->
-  <audio id="sendSound" src="https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3"></audio>
+  <!-- CHAT BOX -->
+  <div id="chat-box">
+    <div class="message ai">
+      Welcome! I'm your personal dental assistant 😎  
+      Ask me about dental care, book an appointment, or just say hi!
+    </div>
+  </div>
 
-  <script src="script.js"></script>
+  <!-- TYPING DOTS -->
+  <div id="typing-indicator" class="typing hidden">
+    <span></span><span></span><span></span>
+  </div>
 
+  <!-- INPUT AREA -->
+  <div class="input-area">
+    <input id="user-input" type="text" placeholder="Type or speak..." onkeypress="if(event.key==='Enter') sendMessage()">
+    <button onclick="sendMessage()">➤</button>
+    <button class="mic" onclick="startListening()">🎤</button>
+  </div>
+
+</div>
+
+<!-- CLICK SOUND -->
+<audio id="sendSound" src="https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3"></audio>
+
+<!-- SCRIPT -->
+<script src="script.js"></script>
 </body>
 </html>
