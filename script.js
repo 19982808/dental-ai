@@ -1,4 +1,4 @@
-const API_KEY = "YOUR_NEW_API_KEY_HERE";
+const API_KEY = "AIzaSyD1iiLZqD6hhNGyovLuwBU7CFq6AGDsVIU";
 
 const chatBox = document.getElementById("chat-box");
 
@@ -14,7 +14,48 @@ function addMessage(text, sender) {
   chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-// Main function
+// 🔊 TEXT TO SPEECH (Deep smooth voice)
+function speak(text) {
+  const speech = new SpeechSynthesisUtterance(text);
+
+  const voices = speechSynthesis.getVoices();
+
+  const preferredVoice = voices.find(v =>
+    v.name.toLowerCase().includes("male") ||
+    v.name.toLowerCase().includes("africa") ||
+    v.name.toLowerCase().includes("english")
+  );
+
+  if (preferredVoice) speech.voice = preferredVoice;
+
+  speech.pitch = 0.8; // deeper
+  speech.rate = 0.9;  // smoother
+
+  speechSynthesis.speak(speech);
+}
+
+// 🎤 SPEECH TO TEXT
+function startListening() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  if (!SpeechRecognition) {
+    alert("Voice input not supported on this device");
+    return;
+  }
+
+  const recognition = new SpeechRecognition();
+  recognition.lang = "en-US";
+
+  recognition.onresult = function (event) {
+    const text = event.results[0][0].transcript;
+    document.getElementById("user-input").value = text;
+    sendMessage();
+  };
+
+  recognition.start();
+}
+
+// MAIN FUNCTION
 async function sendMessage() {
   const input = document.getElementById("user-input");
   const message = input.value.trim();
@@ -29,6 +70,7 @@ async function sendMessage() {
     bookingData.name = message;
     bookingStep = 2;
     addMessage("Great, what date would you like to book?", "ai");
+    speak("Great, what date would you like to book?");
     return;
   }
 
@@ -36,26 +78,24 @@ async function sendMessage() {
     bookingData.date = message;
     bookingStep = 0;
 
-    // Save booking locally
     localStorage.setItem("booking", JSON.stringify(bookingData));
 
-    addMessage(
-      `✅ Booking confirmed!\nName: ${bookingData.name}\nDate: ${bookingData.date}`,
-      "ai"
-    );
+    const confirmation = `Booking confirmed. Name: ${bookingData.name}. Date: ${bookingData.date}`;
+    addMessage(confirmation, "ai");
+    speak(confirmation);
 
     bookingData = {};
     return;
   }
 
-  // If user wants to book
   if (message.toLowerCase().includes("book")) {
     bookingStep = 1;
-    addMessage("Sure! What's your name?", "ai");
+    addMessage("Sure, what's your name?", "ai");
+    speak("Sure, what's your name?");
     return;
   }
 
-  // Show typing
+  // Typing indicator
   addMessage("Typing...", "ai");
 
   try {
@@ -70,9 +110,14 @@ async function sendMessage() {
           contents: [{
             parts: [{
               text: `You are an elite dental clinic AI receptionist.
-Be professional, friendly, and short.
+You are calm, confident, and slightly deep-toned in personality.
 
-Encourage patients to book appointments.
+You help patients:
+- Understand dental problems
+- Encourage bookings
+- Explain treatments simply
+
+Keep responses short and natural.
 
 Patient: ${message}`
             }]
@@ -82,13 +127,13 @@ Patient: ${message}`
     );
 
     const data = await response.json();
-    console.log("API:", data);
+    console.log("API RESPONSE:", data);
 
     // Remove typing
     chatBox.lastChild.remove();
 
-    // Safe parsing
-    let reply = "Sorry, I couldn't understand that.";
+    // ✅ SAFE PARSING
+    let reply = "Sorry, something went wrong. Please try again.";
 
     if (
       data &&
@@ -103,10 +148,16 @@ Patient: ${message}`
     }
 
     addMessage(reply, "ai");
+    speak(reply);
 
   } catch (error) {
-    console.error(error);
+    console.error("ERROR:", error);
+
+    // Remove typing
     chatBox.lastChild.remove();
-    addMessage("Network error. Please try again.", "ai");
+
+    const errMsg = "Network error. Please check your connection.";
+    addMessage(errMsg, "ai");
+    speak(errMsg);
   }
 }
