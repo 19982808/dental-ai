@@ -1,23 +1,67 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Dental AI Assistant</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Elite Dental AI</title>
+
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css" />
 </head>
+
 <body>
 
-<div class="app">
-  <div class="header">🦷 Dental AI Assistant</div>
+  <div class="app">
 
-  <div id="chat-box"></div>
+    <!-- HEADER -->
+    <div class="header">
+      <div class="logo">🦷</div>
+      <div>
+        <h1>Elite Dental AI</h1>
+        <p>Your Private Clinic Assistant</p>
+      </div>
+    </div>
 
-  <div class="input-area">
-    <input id="user-input" placeholder="Describe your issue..." />
-    <button onclick="sendMessage()">Send</button>
+    <!-- CHAT -->
+    <div id="chat-box">
+
+      <!-- Welcome Message -->
+      <div class="message ai">
+        Welcome. I'm your private dental assistant.  
+        Describe your issue or say “book” to schedule an appointment.
+      </div>
+
+    </div>
+
+    <!-- TYPING INDICATOR -->
+    <div id="typing-indicator" class="typing hidden">
+      <span></span><span></span><span></span>
+    </div>
+
+    <!-- INPUT -->
+    <div class="input-area">
+      
+      <input 
+        id="user-input" 
+        type="text" 
+        placeholder="Type or speak..."
+        onkeypress="if(event.key === 'Enter') sendMessage()"
+      />
+
+      <button onclick="sendMessage()">➤</button>
+
+      <button class="mic" onclick="startListening()">🎤</button>
+
+    </div>
+
   </div>
-</div>
 
-<script src="script.js"></script>
+  <!-- SOFT CLICK SOUND -->
+  <audio id="sendSound" src="https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3"></audio>
+
+  <script src="script.js"></script>
+
 </body>
 </html>
