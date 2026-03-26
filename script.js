@@ -126,3 +126,63 @@ async function sendMessage(){
     speak(errMsg);
   }
 }
+// BOOKINGS STORAGE
+let bookings = JSON.parse(localStorage.getItem('bookings')) || [];
+
+// TOGGLE ADMIN
+function toggleAdmin(){
+  const chat = document.getElementById('chatView');
+  const admin = document.getElementById('adminView');
+
+  if(admin.style.display === 'none'){
+    chat.style.display = 'none';
+    admin.style.display = 'block';
+    renderBookings();
+  } else {
+    admin.style.display = 'none';
+    chat.style.display = 'block';
+  }
+}
+
+// RENDER BOOKINGS
+function renderBookings(){
+  const body = document.getElementById('bookingBody');
+  const empty = document.getElementById('emptyMsg');
+
+  body.innerHTML = '';
+
+  if(bookings.length === 0){
+    empty.style.display = 'block';
+    return;
+  } else {
+    empty.style.display = 'none';
+  }
+
+  bookings.forEach((b,i)=>{
+    const row = document.createElement('tr');
+
+    row.innerHTML = `
+      <td>${i+1}</td>
+      <td>${b.name}</td>
+      <td>${b.date}</td>
+      <td><button onclick="deleteBooking(${i})">Delete</button></td>
+    `;
+
+    body.appendChild(row);
+  });
+}
+
+// DELETE
+function deleteBooking(i){
+  if(confirm('Delete booking?')){
+    bookings.splice(i,1);
+    localStorage.setItem('bookings', JSON.stringify(bookings));
+    renderBookings();
+  }
+}
+
+// ADD BOOKING (CALL THIS FROM AI)
+function addBooking(name, date){
+  bookings.push({name, date});
+  localStorage.setItem('bookings', JSON.stringify(bookings));
+}
