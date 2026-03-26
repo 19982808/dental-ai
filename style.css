@@ -1,7 +1,7 @@
 body {
   margin: 0;
-  font-family: Arial;
-  background: #1a0a14;
+  font-family: 'Segoe UI', sans-serif;
+  background: #140810;
   color: white;
 }
 
@@ -14,48 +14,62 @@ body {
 }
 
 .header {
-  background: #3b0f2b;
+  background: linear-gradient(90deg, #3b0f2b, #6b1e4d);
   padding: 15px;
   text-align: center;
   font-weight: bold;
   border-bottom: 2px solid gold;
+  letter-spacing: 1px;
 }
 
 #chat-box {
   flex: 1;
-  padding: 10px;
+  padding: 12px;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .message {
-  margin: 8px 0;
-  padding: 10px;
-  border-radius: 10px;
+  max-width: 75%;
+  padding: 12px;
+  margin: 6px 0;
+  border-radius: 16px;
+  font-size: 14px;
+  line-height: 1.4;
 }
 
 .user {
   background: gold;
   color: black;
   align-self: flex-end;
+  border-bottom-right-radius: 4px;
 }
 
 .ai {
   background: #4a1c35;
+  align-self: flex-start;
+  border-bottom-left-radius: 4px;
 }
 
 .input-area {
   display: flex;
-  border-top: 1px solid #444;
+  border-top: 1px solid #333;
+  background: #1c0b15;
 }
 
 input {
   flex: 1;
-  padding: 12px;
+  padding: 14px;
   border: none;
+  outline: none;
+  background: transparent;
+  color: white;
 }
 
 button {
   background: gold;
   border: none;
-  padding: 12px;
+  padding: 14px;
+  font-weight: bold;
 }
