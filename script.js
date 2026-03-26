@@ -2,76 +2,99 @@
 // 🔐 CONFIG
 // ==========================
 const API_KEY = "AIzaSyDQLQnELoeNGQ08JuxF80wGiRoSIFcOhO4"; 
+
+// 🔥 FIREBASE CONFIG (PASTE YOURS HERE)
+const firebaseConfig = {
+  apiKey: "YOUR_FIREBASE_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "XXXX",
+  appId: "XXXX"
+};
+
 // ==========================
-// 💾 STORAGE
+// 🔥 INIT FIREBASE
 // ==========================
-let bookings = JSON.parse(localStorage.getItem('bookings')) || [];
-let memory = JSON.parse(localStorage.getItem('memory')) || {
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// ==========================
+// 🧠 USER MEMORY (CLOUD)
+// ==========================
+let memory = {
   name: null,
   issue: null,
   painLevel: null
 };
 
-function saveData(){
-  localStorage.setItem('bookings', JSON.stringify(bookings));
-  localStorage.setItem('memory', JSON.stringify(memory));
-}
+const USER_ID = localStorage.getItem("ryn_user") || "user_" + Date.now();
+localStorage.setItem("ryn_user", USER_ID);
 
-// ==========================
-// 🧾 BOOKING SYSTEM
-// ==========================
-function addBooking(name, date){
-  bookings.push({ name, date });
-  saveData();
-}
-
-// ==========================
-// 📊 ADMIN DASHBOARD
-// ==========================
-function toggleAdmin(){
-  const chat = document.getElementById('chatView');
-  const admin = document.getElementById('adminView');
-
-  if(admin.style.display === 'none'){
-    chat.style.display = 'none';
-    admin.style.display = 'block';
-    renderBookings();
-  } else {
-    admin.style.display = 'none';
-    chat.style.display = 'block';
+// LOAD MEMORY FROM FIREBASE
+async function loadMemory(){
+  const doc = await db.collection("patients").doc(USER_ID).get();
+  if(doc.exists){
+    memory = doc.data();
   }
 }
 
-function renderBookings(){
-  const body = document.getElementById('bookingBody');
-  const empty = document.getElementById('emptyMsg');
+// SAVE MEMORY
+async function saveMemory(){
+  await db.collection("patients").doc(USER_ID).set(memory);
+}
 
-  body.innerHTML = '';
-
-  if(bookings.length === 0){
-    empty.style.display = 'block';
-    return;
-  } else {
-    empty.style.display = 'none';
-  }
-
-  bookings.forEach((b,i)=>{
-    const row = document.createElement('tr');
-    row.innerHTML = `
-      <td>${i+1}</td>
-      <td>${b.name}</td>
-      <td>${b.date}</td>
-      <td><button onclick="deleteBooking(${i})">Delete</button></td>
-    `;
-    body.appendChild(row);
+// ==========================
+// 📊 BOOKINGS (CLOUD)
+// ==========================
+async function addBooking(name, date){
+  await db.collection("bookings").add({
+    name,
+    date,
+    userId: USER_ID,
+    timestamp: new Date()
   });
 }
 
-function deleteBooking(i){
-  if(confirm('Delete booking?')){
-    bookings.splice(i,1);
-    saveData();
-    renderBookings();
+// REAL-TIME BOOKINGS (ADMIN)
+function listenBookings(){
+  const body = document.getElementById('bookingBody');
+  const empty = document.getElementById('emptyMsg');
+
+  db.collection("bookings")
+    .orderBy("timestamp", "desc")
+    .onSnapshot(snapshot => {
+
+      body.innerHTML = "";
+
+      if(snapshot.empty){
+        empty.style.display = "block";
+        return;
+      }
+
+      empty.style.display = "none";
+
+      let i = 1;
+
+      snapshot.forEach(doc => {
+        const b = doc.data();
+
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${i++}</td>
+          <td>${b.name}</td>
+          <td>${b.date}</td>
+          <td><button onclick="deleteBooking('${doc.id}')">Delete</button></td>
+        `;
+        body.appendChild(row);
+      });
+    });
+}
+
+// DELETE BOOKING
+async function deleteBooking(id){
+  if(confirm("Delete booking?")){
+    await db.collection("bookings").doc(id).delete();
   }
 }
 
@@ -98,44 +121,31 @@ function hideTyping(){
 }
 
 // ==========================
-// 🎤 VOICE INPUT
-// ==========================
-function startListening(){
-  const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-  recognition.lang = "en-US";
-
-  recognition.onresult = function(event){
-    document.getElementById("user-input").value = event.results[0][0].transcript;
-    sendMessage();
-  };
-
-  recognition.start();
-}
-
-// ==========================
-// 🔊 VOICE OUTPUT
+// 🔊 VOICE (DEEP MALE)
 // ==========================
 function speak(text){
   const speech = new SpeechSynthesisUtterance(text);
 
-  speech.pitch = 0.5;
+  speech.pitch = 0.6;
   speech.rate = 0.85;
 
   const voices = speechSynthesis.getVoices();
-  speech.voice = voices.find(v => v.name.toLowerCase().includes("male")) || voices[0];
+  speech.voice = voices.find(v =>
+    v.name.toLowerCase().includes("male")
+  ) || voices[0];
 
   speechSynthesis.speak(speech);
 }
 
 // ==========================
-// 🧠 SMART TRIAGE SYSTEM
+// 🧠 TRIAGE
 // ==========================
 function analyzeSymptoms(msg){
   msg = msg.toLowerCase();
 
   let severity = "low";
 
-  if(msg.includes("severe") || msg.includes("unbearable") || msg.includes("swelling")){
+  if(msg.includes("swelling") || msg.includes("pus") || msg.includes("unbearable")){
     severity = "high";
   } else if(msg.includes("pain") || msg.includes("ache")){
     severity = "medium";
@@ -143,46 +153,47 @@ function analyzeSymptoms(msg){
 
   memory.issue = msg;
   memory.painLevel = severity;
-  saveData();
+  saveMemory();
 
   if(severity === "high"){
-    return "That sounds serious. You might have an infection or abscess. I strongly recommend urgent dental care.";
+    return "That sounds serious… possible infection. You need urgent dental care.";
   }
 
   if(severity === "medium"){
-    return "That discomfort could be decay or sensitivity. It’s best to treat it early before it worsens.";
+    return "That pain could mean decay or nerve irritation. We should check it early.";
   }
 
-  return "Alright… doesn’t sound too severe, but let’s keep an eye on it.";
+  return "Alright… not severe, but let’s monitor it.";
 }
 
 // ==========================
-// 🧠 FALLBACK AI
+// 🧠 FALLBACK
 // ==========================
 function smartFallback(msg){
   msg = msg.toLowerCase();
 
-  if(msg.includes("hi") || msg.includes("hello")){
+  if(msg === "hi" || msg === "hello"){
     return memory.name 
-      ? `Hey ${memory.name}… good to have you back. What’s going on today?`
+      ? `Hey ${memory.name}… good to see you again.`
       : "Hey… I’m Rynar. What’s your name?";
   }
 
-  if(!memory.name){
-    memory.name = msg;
-    saveData();
-    return `Nice to meet you, ${memory.name}. Now tell me… what’s bothering you?`;
+  if(msg.includes("my name is")){
+    const name = msg.split("my name is")[1].trim();
+    memory.name = name;
+    saveMemory();
+    return `Nice to meet you, ${name}. What’s bothering you?`;
   }
 
-  if(msg.includes("tooth") || msg.includes("pain") || msg.includes("ache")){
+  if(msg.includes("pain") || msg.includes("tooth")){
     return analyzeSymptoms(msg);
   }
 
-  if(msg.includes("book") || msg.includes("appointment")){
-    return "Let’s lock that in for you. I’ll take care of it.";
+  if(msg.includes("appointment")){
+    return "Let’s secure your booking. I’ve got you.";
   }
 
-  return "Tell me more… I want to understand properly before I guide you.";
+  return "Tell me more… I want to help properly.";
 }
 
 // ==========================
@@ -193,43 +204,42 @@ async function getGeminiResponse(userMessage){
   const systemPrompt = `
 You are Rynar, an elite dental AI assistant.
 
-User memory:
+Patient:
 Name: ${memory.name || "Unknown"}
 Issue: ${memory.issue || "None"}
 Pain Level: ${memory.painLevel || "Unknown"}
 
-Personality:
-- Confident, calm, masculine
-- Professional,sexy and very charming
-- Human-like responses
+Tone:
+- Confident
+- Calm
+- Masculine deep
+- Charming,sexy but professional
 
 Behavior:
 - Give real dental advice
 - Ask follow-up questions
-- Be concise but helpful
 `;
 
   try {
-    const response = await fetch(
+    const res = await fetch(
       "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=" + API_KEY,
       {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({
           contents: [{
-            parts: [{
-              text: systemPrompt + "\nUser: " + userMessage
-            }]
+            parts: [{ text: systemPrompt + "\nUser: " + userMessage }]
           }]
         })
       }
     );
 
-    const data = await response.json();
+    const data = await res.json();
+    let text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
-    const aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if(aiText) return aiText;
+    if(text && text.trim().length > 5){
+      return text.trim();
+    }
 
     return smartFallback(userMessage);
 
@@ -244,11 +254,8 @@ Behavior:
 // ==========================
 function sendToWhatsApp(name, date){
   const phone = "254757902314";
-
   const text = `Dental Booking\nName: ${name}\nDate: ${date}`;
-
-  const url = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
-  window.open(url, "_blank");
+  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`);
 }
 
 // ==========================
@@ -270,22 +277,23 @@ async function sendMessage(){
   addMessage(reply, "ai");
   speak(reply);
 
-  // SMART BOOKING
   const msg = message.toLowerCase();
 
-  if(
-    msg.includes("book appointment") ||
-    msg.includes("schedule") ||
-    msg.includes("appointment")
-  ){
+  if(msg.includes("appointment") || msg.includes("book")){
     const name = memory.name || "Patient";
     const date = new Date().toLocaleDateString();
 
-    addBooking(name, date);
+    await addBooking(name, date);
 
     setTimeout(()=>{
-      addMessage("You're booked. I’ll send confirmation on WhatsApp now.", "ai");
+      addMessage("You're booked. Confirming via WhatsApp now.", "ai");
       sendToWhatsApp(name, date);
     }, 800);
   }
 }
+
+// ==========================
+// 🚀 INIT
+// ==========================
+loadMemory();
+listenBookings();
