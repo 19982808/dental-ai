@@ -1,4 +1,4 @@
-const API_KEY = "AIzaSyD1iiLZqD6hhNGyovLuwBU7CFq6AGDsVIU"; 
+const API_KEY = "AIzaSyDQLQnELoeNGQ08JuxF80wGiRoSIFcOhO4"; 
 const chatBox = document.getElementById("chat-box");
 const typingIndicator = document.getElementById("typing-indicator");
 const sendSound = document.getElementById("sendSound");
