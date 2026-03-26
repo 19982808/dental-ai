@@ -3,12 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Elite Dental AI</title>
+  <title>Rynar Dental AI</title>
 
-  <!-- Google Font -->
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
-
-  <!-- CSS -->
   <link rel="stylesheet" href="style.css">
 </head>
 
@@ -20,37 +17,64 @@
   <div class="header">
     <div class="logo">🦷</div>
     <div>
-      <h1>Concoct Dental AI</h1>
+      <h1>Rynar Dental AI</h1>
       <p>Premium Smile Experience</p>
     </div>
+
+    <!-- ADMIN BUTTON -->
+    <button onclick="toggleAdmin()" style="margin-left:auto;">⚙️</button>
   </div>
 
-  <!-- CHAT BOX -->
-  <div id="chat-box">
-    <div class="message ai">
-      Welcome! I'm your personal dental assistant 😎  
-      Ask me about dental care, book an appointment, or just say hi!
+  <!-- ================= CHAT VIEW ================= -->
+  <div id="chatView">
+
+    <div id="chat-box">
+      <div class="message ai">
+        Hello… I’m <b>Rynar</b> — your personal dental AI assistant.  
+        Let’s take care of that smile properly 😉
+      </div>
     </div>
+
+    <div id="typing-indicator" class="typing hidden">
+      <span></span><span></span><span></span>
+    </div>
+
+    <div class="input-area">
+      <input id="user-input" type="text" placeholder="Type or speak..." onkeypress="if(event.key==='Enter') sendMessage()">
+      <button onclick="sendMessage()">➤</button>
+      <button class="mic" onclick="startListening()">🎤</button>
+    </div>
+
   </div>
 
-  <!-- TYPING DOTS -->
-  <div id="typing-indicator" class="typing hidden">
-    <span></span><span></span><span></span>
-  </div>
+  <!-- ================= ADMIN VIEW ================= -->
+  <div id="adminView" style="display:none; padding:15px; overflow:auto;">
 
-  <!-- INPUT AREA -->
-  <div class="input-area">
-    <input id="user-input" type="text" placeholder="Type or speak..." onkeypress="if(event.key==='Enter') sendMessage()">
-    <button onclick="sendMessage()">➤</button>
-    <button class="mic" onclick="startListening()">🎤</button>
+    <h2>Bookings Dashboard</h2>
+
+    <table style="width:100%; border-collapse:collapse;">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Name</th>
+          <th>Date</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+
+      <tbody id="bookingBody"></tbody>
+    </table>
+
+    <p id="emptyMsg" class="empty">No bookings yet.</p>
+
+    <button onclick="toggleAdmin()" style="margin-top:15px;">⬅ Back to Chat</button>
+
   </div>
 
 </div>
 
-<!-- CLICK SOUND -->
 <audio id="sendSound" src="https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3"></audio>
 
-<!-- SCRIPT -->
 <script src="script.js"></script>
 </body>
 </html>
