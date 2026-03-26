@@ -1,17 +1,65 @@
-const API_KEY = "AIzaSyCgJl7AgrFY4yDvhk6KJXYqLDSA9e_gzCo";
+const API_KEY = "YOUR_NEW_API_KEY_HERE";
 
+const chatBox = document.getElementById("chat-box");
+
+let bookingStep = 0;
+let bookingData = {};
+
+// Add message to UI
+function addMessage(text, sender) {
+  const msg = document.createElement("div");
+  msg.classList.add("message", sender);
+  msg.innerText = text;
+  chatBox.appendChild(msg);
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+// Main function
 async function sendMessage() {
-  let input = document.getElementById("user-input");
-  let message = input.value.trim();
-  let chat = document.getElementById("chat-box");
+  const input = document.getElementById("user-input");
+  const message = input.value.trim();
 
   if (!message) return;
 
-  chat.innerHTML += `<p><b>You:</b> ${message}</p>`;
+  addMessage(message, "user");
   input.value = "";
 
+  // 🟡 BOOKING FLOW
+  if (bookingStep === 1) {
+    bookingData.name = message;
+    bookingStep = 2;
+    addMessage("Great, what date would you like to book?", "ai");
+    return;
+  }
+
+  if (bookingStep === 2) {
+    bookingData.date = message;
+    bookingStep = 0;
+
+    // Save booking locally
+    localStorage.setItem("booking", JSON.stringify(bookingData));
+
+    addMessage(
+      `✅ Booking confirmed!\nName: ${bookingData.name}\nDate: ${bookingData.date}`,
+      "ai"
+    );
+
+    bookingData = {};
+    return;
+  }
+
+  // If user wants to book
+  if (message.toLowerCase().includes("book")) {
+    bookingStep = 1;
+    addMessage("Sure! What's your name?", "ai");
+    return;
+  }
+
+  // Show typing
+  addMessage("Typing...", "ai");
+
   try {
-    let response = await fetch(
+    const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${API_KEY}`,
       {
         method: "POST",
@@ -21,13 +69,10 @@ async function sendMessage() {
         body: JSON.stringify({
           contents: [{
             parts: [{
-              text: `You are a professional dental clinic receptionist.
-You help patients with:
-- booking appointments
-- explaining treatments
-- giving friendly advice
+              text: `You are an elite dental clinic AI receptionist.
+Be professional, friendly, and short.
 
-Be polite, short, and helpful.
+Encourage patients to book appointments.
 
 Patient: ${message}`
             }]
@@ -36,13 +81,32 @@ Patient: ${message}`
       }
     );
 
-    let data = await response.json();
+    const data = await response.json();
+    console.log("API:", data);
 
-    let reply = data.candidates[0].content.parts[0].text;
+    // Remove typing
+    chatBox.lastChild.remove();
 
-    chat.innerHTML += `<p><b>AI:</b> ${reply}</p>`;
+    // Safe parsing
+    let reply = "Sorry, I couldn't understand that.";
+
+    if (
+      data &&
+      data.candidates &&
+      data.candidates.length > 0 &&
+      data.candidates[0].content &&
+      data.candidates[0].content.parts &&
+      data.candidates[0].content.parts.length > 0 &&
+      data.candidates[0].content.parts[0].text
+    ) {
+      reply = data.candidates[0].content.parts[0].text;
+    }
+
+    addMessage(reply, "ai");
 
   } catch (error) {
-    chat.innerHTML += `<p><b>AI:</b> Sorry, something went wrong.</p>`;
+    console.error(error);
+    chatBox.lastChild.remove();
+    addMessage("Network error. Please try again.", "ai");
   }
 }
