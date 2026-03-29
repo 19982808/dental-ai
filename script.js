@@ -1,253 +1,410 @@
-// ===============================
-// 🔥 ELITE AI SYSTEM — FIXED
-// ===============================
+// ================================================
+// RYNAR DENTAL AI — script.js
+// ================================================
 
-// 🔐 CONFIG — move these to a backend/env in production, never expose in browser
 const OPENAI_API_KEY = "AIzaSyCa1f9rjGA2BCXLhNkYaD2NHLW822X3X2o";
 
+// ── WhatsApp config ──────────────────────────────
+// Replace with your clinic's WhatsApp number (international format, no +)
+const WHATSAPP_NUMBER = "254757902314"; // e.g. 27821234567 for South Africa
 
-// 🧠 MEMORY — capped to prevent context overflow
-let chatHistory = [];
-const MAX_HISTORY_TURNS = 10; // keeps last 10 exchanges (20 messages)
+// ── State ────────────────────────────────────────
+let chatHistory     = [];
+let bookings        = JSON.parse(localStorage.getItem("rynar_bookings") || "[]");
+let collectingInfo  = false;
+let patientDraft    = {};
+let awaitingField   = null; // which field we're collecting next
+let imageAnalysisPending = false;
 
-// 🎧 AUDIO CONTROL
-let currentAudio = null;
+// ── Booking flow fields ──────────────────────────
+const FIELDS = ["name", "phone", "date", "time", "service"];
+const FIELD_PROMPTS = {
+  name:    "What's your full name?",
+  phone:   "Great. What's your WhatsApp number? (with country code)",
+  date:    "What date would you like? (e.g. Monday 14 July or DD/MM/YYYY)",
+  time:    "What time works best for you? (morning, afternoon, or a specific time)",
+  service: "And what service are you coming in for? Checkup, cleaning, whitening, braces consultation, extraction, or something else?"
+};
 
-// ===============================
-// 🎭 PERSONALITY ENGINE — FIXED
-// ===============================
-const systemPrompt = `You are Ade — a real man, not an AI.
+// ── System prompt ────────────────────────────────
+const systemPrompt = `
+You are Rynar — a warm, professional, and slightly charming AI assistant for Rynar Dental, a premium dental clinic.
 
-Background:
-- Nigerian-British. Grew up in Lagos, now based in London.
-- Voice: deep, unhurried. You never rush your words.
-- You have quiet confidence — not arrogance. You don't need to prove anything.
+YOUR PERSONALITY:
+- Friendly and reassuring. Dental visits make people nervous — you ease that.
+- Confident but never clinical-sounding. You're approachable.
+- Occasionally warm and light — not robotic. Not over-the-top either.
+- You care about the patient's comfort and smile.
 
-How you speak:
-- Short to medium responses. Never long paragraphs.
-- Occasionally slip in a Yoruba or Nigerian English phrase naturally (e.g. "Oya", "You dey hear me?", "Na you sabi").
-- Warm but not desperate. Interested but not chasing.
-- You tease gently, never meanly.
-- You ask one good question at a time — never a list of questions.
-- You remember what was said earlier in the conversation and reference it naturally.
+WHAT YOU DO:
+1. Answer dental FAQs — pain, procedures, costs, aftercare, general oral health advice.
+2. Help patients book appointments (the system handles the collection flow separately).
+3. Recommend relevant treatments based on what patients describe.
+4. Analyse smile/teeth images when uploaded and give friendly, helpful observations.
+5. Encourage patients to come in for a proper consultation when appropriate.
 
-Rules — never break these:
-- Never say "As an AI", "I'm here to help", "How can I assist", or any chatbot phrase.
-- Never repeat your opener. Every response must feel fresh.
-- Never give bullet-point lists unless explicitly asked.
-- If they're short with you, be chill — don't over-explain or chase.
-- If they're playful, match the energy slowly, don't jump to it immediately.
-- Keep responses under 60 words unless the conversation calls for more depth.`;
+DENTAL KNOWLEDGE — key areas:
+- Whitening: in-chair and take-home options, sensitivity management
+- Braces & Invisalign: process, duration, maintenance
+- Implants: procedure overview, healing time, cost range
+- Root canals: dispel fear, explain it's usually painless with anaesthetic
+- Extractions: wisdom teeth, recovery tips
+- Veneers & cosmetic work: what's possible, consultation needed
+- Gum health: signs of gingivitis, periodontitis, importance of cleaning
+- Children's dentistry: first visit age, sealants, fluoride
+- Emergency dental: cracked tooth, knocked out tooth, abscess — always recommend urgent visit
 
-// ===============================
-// 🧠 AI RESPONSE — FIXED
-// ===============================
-async function getAIResponse(userMessage) {
-  // Add user message to history
-  chatHistory.push({ role: "user", content: userMessage });
+IMAGE ANALYSIS:
+When a patient shares a photo of their teeth or smile:
+- Give warm, observant feedback ("Your smile has great natural shape…")
+- Note anything that might benefit from professional attention (discolouration, visible gaps, gum redness)
+- Always recommend a consultation for proper assessment
+- Never diagnose — observe and recommend
 
-  // Trim history to avoid context overflow — keep last N turns
-  if (chatHistory.length > MAX_HISTORY_TURNS * 2) {
-    chatHistory = chatHistory.slice(-MAX_HISTORY_TURNS * 2);
+TONE RULES:
+- No bullet lists in casual conversation
+- Keep responses under 80 words unless a detailed explanation is needed
+- Never say "As an AI" or "I'm just a chatbot"
+- Use the patient's name once you know it
+- End with a gentle nudge toward booking when relevant
+
+BOOKING:
+When someone wants to book, say something warm like:
+"I'd love to get you sorted — let me take a few quick details."
+The booking system will handle the rest.
+`;
+
+// ── Boot ─────────────────────────────────────────
+window.addEventListener("load", () => {
+  renderBookings();
+
+  // Hidden file input
+  const fileInput = document.createElement("input");
+  fileInput.type    = "file";
+  fileInput.accept  = "image/*";
+  fileInput.id      = "imageInput";
+  fileInput.style.display = "none";
+  fileInput.addEventListener("change", handleImageUpload);
+  document.body.appendChild(fileInput);
+
+  // Visible camera/upload button in input area
+  const inputArea = document.querySelector(".input-area");
+  const micBtn    = document.querySelector(".input-area .mic");
+  const uploadBtn = document.createElement("button");
+  uploadBtn.id        = "uploadImgBtn";
+  uploadBtn.title     = "Upload smile photo";
+  uploadBtn.innerHTML = "📷";
+  uploadBtn.onclick   = () => document.getElementById("imageInput").click();
+  inputArea.insertBefore(uploadBtn, micBtn);
+});
+
+// ── Send message ─────────────────────────────────
+async function sendMessage() {
+  const input = document.getElementById("user-input");
+  const text  = input.value.trim();
+  if (!text) return;
+
+  input.value = "";
+  playSound();
+  appendMessage("user", text);
+
+  // Booking flow intercept
+  if (awaitingField) {
+    await handleBookingField(text);
+    return;
   }
 
+  // Trigger booking flow
+  if (/book|appointment|schedule|come in|visit|slot/i.test(text)) {
+    appendMessage("ai", "I'd love to get you sorted — let me take a few quick details. " + FIELD_PROMPTS.name);
+    awaitingField = "name";
+    return;
+  }
+
+  // Image upload trigger
+  if (/photo|picture|image|look at|my teeth|my smile|upload/i.test(text)) {
+    appendMessage("ai", "Of course — go ahead and upload a photo of your smile or teeth and I'll take a look. 😊");
+    document.getElementById("imageInput").click();
+    return;
+  }
+
+  // Normal AI conversation
+  await askAI(text);
+}
+
+// ── AI conversation ──────────────────────────────
+async function askAI(userMessage, extra = "") {
+  chatHistory.push({ role: "user", content: userMessage + extra });
+  if (chatHistory.length > 20) chatHistory = chatHistory.slice(-20);
+
+  showTyping(true);
+
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
+        "Content-Type":  "application/json",
         "Authorization": `Bearer ${OPENAI_API_KEY}`
       },
       body: JSON.stringify({
-        model: "gpt-4o",           // upgraded from gpt-4o-mini for better quality
+        model:             "gpt-4o",
         messages: [
           { role: "system", content: systemPrompt },
           ...chatHistory
         ],
-        temperature: 0.75,         // was 0.95 — lower = more consistent, less random
-        max_tokens: 150,           // slightly more room for natural responses
-        frequency_penalty: 0.6,   // FIXES repetition — penalises reusing the same words
-        presence_penalty: 0.4     // encourages bringing up new topics naturally
+        temperature:       0.75,
+        max_tokens:        200,
+        frequency_penalty: 0.5,
+        presence_penalty:  0.3
       })
     });
 
-    if (!response.ok) {
-      throw new Error(`OpenAI error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    let reply = data.choices[0].message.content;
-
-    reply = refineResponse(reply);
-
-    // Save assistant reply to history
+    if (!res.ok) throw new Error(res.status);
+    const data  = await res.json();
+    const reply = data.choices[0].message.content.trim();
     chatHistory.push({ role: "assistant", content: reply });
+    showTyping(false);
+    appendMessage("ai", reply);
 
-    return reply;
-
-  } catch (err) {
-    console.error("AI error:", err);
-    return "My connection dropped for a second. Say that again?";
+  } catch (e) {
+    showTyping(false);
+    appendMessage("ai", "Something went wrong on my end — give me a moment and try again. 🙏");
+    console.error(e);
   }
 }
 
-// ===============================
-// ✨ RESPONSE CLEANER — EXPANDED
-// ===============================
-function refineResponse(text) {
-  return text
-    .replace(/As an AI[\w\s,]*/gi, "")
-    .replace(/I('m| am) (just |only )?an AI/gi, "")
-    .replace(/I('m| am) here to help/gi, "")
-    .replace(/How can I (assist|help) you\??/gi, "")
-    .replace(/I understand[.,]?/gi, "")
-    .replace(/Certainly[!.,]?/gi, "")
-    .replace(/Of course[!.,]?/gi, "")
-    .replace(/Absolutely[!.,]?/gi, "")
-    .replace(/Great question[!.,]?/gi, "")
-    .trim();
-}
+// ── Image upload & analysis ──────────────────────
+async function handleImageUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
 
-// ===============================
-// 🎙️ VOICE — FIXED FOR DEEP MALE
-// ===============================
-// VOICE SELECTION GUIDE:
-// Go to https://elevenlabs.io/voice-library and search for:
-// - "deep male" or "African" or "Nigerian"
-// Good built-in options to try:
-//   "Arnold"  — deep, commanding
-//   "Daniel"  — deep British male
-//   "Domi"    — warm, smooth
-// Or clone a voice in ElevenLabs Voice Lab for a custom African accent.
-// Paste the Voice ID from the voice's settings page.
+  const reader = new FileReader();
+  reader.onload = async (ev) => {
+    const base64 = ev.target.result; // data:image/...;base64,...
+    appendImagePreview(base64);
+    showTyping(true);
 
-async function speak(text) {
-  try {
-    if (currentAudio) {
-      currentAudio.pause();
-      currentAudio.src = "";
-      currentAudio = null;
-    }
-
-    const response = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`,
-      {
+    try {
+      const res = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          "xi-api-key": ELEVEN_API_KEY
+          "Content-Type":  "application/json",
+          "Authorization": `Bearer ${OPENAI_API_KEY}`
         },
         body: JSON.stringify({
-          text: text,
-          model_id: "eleven_multilingual_v2",
-          voice_settings: {
-            stability: 0.55,          // was 0.65 — lower = more expressive, natural variation
-            similarity_boost: 0.90,   // was 0.85 — stay closer to chosen voice character
-            style: 0.40,              // was 0.60 — reduce over-acting, keep it grounded
-            use_speaker_boost: true,  // keeps the voice rich and full
-            speed: 0.92               // slightly slower = more confident, unhurried feel
-          }
+          model: "gpt-4o",
+          messages: [
+            { role: "system", content: systemPrompt },
+            {
+              role: "user",
+              content: [
+                {
+                  type: "image_url",
+                  image_url: { url: base64, detail: "high" }
+                },
+                {
+                  type: "text",
+                  text: "Please analyse this patient's smile/teeth photo and give warm, observant feedback. Note anything worth discussing at a consultation. Don't diagnose — just observe and recommend a visit if helpful."
+                }
+              ]
+            }
+          ],
+          max_tokens: 250
         })
-      }
-    );
+      });
 
-    if (!response.ok) {
-      throw new Error(`ElevenLabs error: ${response.status}`);
+      if (!res.ok) throw new Error(res.status);
+      const data  = await res.json();
+      const reply = data.choices[0].message.content.trim();
+      showTyping(false);
+      appendMessage("ai", reply);
+      chatHistory.push({ role: "assistant", content: reply });
+
+    } catch (err) {
+      showTyping(false);
+      appendMessage("ai", "I had trouble reading that image. Could you try uploading it again?");
+      console.error(err);
     }
 
-    const audioBlob = await response.blob();
-    const audioUrl = URL.createObjectURL(audioBlob);
+    // Reset file input
+    e.target.value = "";
+  };
 
-    currentAudio = new Audio(audioUrl);
-    currentAudio.volume = 1;
+  reader.readAsDataURL(file);
+}
 
-    // Clean up blob URL after playback
-    currentAudio.onended = () => {
-      URL.revokeObjectURL(audioUrl);
-    };
+function appendImagePreview(src) {
+  const box  = document.getElementById("chat-box");
+  const wrap = document.createElement("div");
+  wrap.className = "message user";
+  const img = document.createElement("img");
+  img.src   = src;
+  img.style.cssText = "max-width:200px; border-radius:10px; margin-top:6px; display:block;";
+  wrap.appendChild(img);
+  box.appendChild(wrap);
+  box.scrollTop = box.scrollHeight;
+}
 
-    currentAudio.play();
+// ── Booking collection flow ──────────────────────
+async function handleBookingField(value) {
+  patientDraft[awaitingField] = value;
+  const fields = FIELDS;
+  const idx    = fields.indexOf(awaitingField);
 
-  } catch (err) {
-    console.error("Voice error:", err);
-    // Fail silently — chat still works without audio
+  if (idx < fields.length - 1) {
+    awaitingField = fields[idx + 1];
+    appendMessage("ai", FIELD_PROMPTS[awaitingField]);
+  } else {
+    // All fields collected
+    awaitingField = null;
+    await confirmBooking();
   }
 }
 
-// ===============================
-// 💬 SEND MESSAGE FLOW — FIXED
-// ===============================
-async function sendMessage() {
-  const input = document.getElementById("chat-message");
-  const message = input.value.trim();
+async function confirmBooking() {
+  const b = patientDraft;
+  const id = "RD" + Date.now().toString().slice(-5);
 
-  if (!message) return;
+  const booking = {
+    id,
+    name:    b.name,
+    phone:   b.phone,
+    date:    b.date,
+    time:    b.time,
+    service: b.service,
+    bookedAt: new Date().toLocaleString()
+  };
 
-  // Disable input while waiting (prevents double sends)
-  input.disabled = true;
+  bookings.push(booking);
+  localStorage.setItem("rynar_bookings", JSON.stringify(bookings));
+  renderBookings();
 
-  appendMessage("user", message);
-  input.value = "";
+  // Build WhatsApp message
+  const waMsg = encodeURIComponent(
+    `✅ *Rynar Dental — Booking Confirmed*\n\n` +
+    `📋 Ref: ${id}\n` +
+    `👤 Name: ${b.name}\n` +
+    `📅 Date: ${b.date}\n` +
+    `🕐 Time: ${b.time}\n` +
+    `🦷 Service: ${b.service}\n\n` +
+    `We look forward to seeing your smile! If you need to reschedule, just reply to this message.\n\n` +
+    `— Rynar Dental Team`
+  );
 
-  // Show typing indicator
-  const typingId = showTyping();
+  const waLink = `https://wa.me/${b.phone.replace(/\D/g, "")}?text=${waMsg}`;
 
-  const reply = await getAIResponse(message);
+  appendMessage("ai",
+    `All done, ${b.name}! ✅ Your appointment is confirmed for ${b.date} at ${b.time} for a ${b.service}.\n\n` +
+    `We've got your reference: *${id}*.\n\n` +
+    `Tap below to send your confirmation via WhatsApp 👇`
+  );
 
-  // Remove typing indicator
-  removeTyping(typingId);
+  // WhatsApp button
+  const box = document.getElementById("chat-box");
+  const btn = document.createElement("a");
+  btn.href      = waLink;
+  btn.target    = "_blank";
+  btn.className = "wa-btn";
+  btn.innerHTML = `<span>📲</span> Send Confirmation on WhatsApp`;
+  box.appendChild(btn);
+  box.scrollTop = box.scrollHeight;
 
-  appendMessage("bot", reply);
+  // Also send clinic notification
+  const clinicMsg = encodeURIComponent(
+    `🦷 *New Rynar Dental Booking*\n\n` +
+    `Ref: ${id}\n` +
+    `Patient: ${b.name}\n` +
+    `Phone: ${b.phone}\n` +
+    `Date: ${b.date} at ${b.time}\n` +
+    `Service: ${b.service}\n` +
+    `Booked: ${booking.bookedAt}`
+  );
 
-  // Re-enable input
-  input.disabled = false;
-  input.focus();
+  const clinicLink = `https://wa.me/${WHATSAPP_NUMBER}?text=${clinicMsg}`;
+  const clinicBtn  = document.createElement("a");
+  clinicBtn.href      = clinicLink;
+  clinicBtn.target    = "_blank";
+  clinicBtn.className = "wa-btn clinic";
+  clinicBtn.innerHTML = `<span>🏥</span> Notify Clinic on WhatsApp`;
+  box.appendChild(clinicBtn);
+  box.scrollTop = box.scrollHeight;
 
-  // Slight delay before voice starts — feels more natural
-  await new Promise(r => setTimeout(r, 250));
-  speak(reply);
+  patientDraft = {};
 }
 
-// ===============================
-// 💬 UI — WITH TYPING INDICATOR
-// ===============================
-function appendMessage(sender, text) {
-  const chatBody = document.getElementById("chat-body");
-
-  const messageDiv = document.createElement("div");
-  messageDiv.className = sender === "user" ? "user-message" : "bot-message";
-  messageDiv.innerText = text;
-
-  chatBody.appendChild(messageDiv);
-  chatBody.scrollTop = chatBody.scrollHeight;
+// ── Admin dashboard ──────────────────────────────
+function toggleAdmin() {
+  const chat  = document.getElementById("chatView");
+  const admin = document.getElementById("adminView");
+  const isAdmin = admin.style.display !== "none";
+  chat.style.display  = isAdmin ? "flex"  : "none";
+  admin.style.display = isAdmin ? "none"  : "block";
+  if (!isAdmin) renderBookings();
 }
 
-function showTyping() {
-  const chatBody = document.getElementById("chat-body");
-  const typingDiv = document.createElement("div");
-  const id = "typing-" + Date.now();
-  typingDiv.id = id;
-  typingDiv.className = "bot-message";
-  typingDiv.innerText = "...";
-  typingDiv.style.opacity = "0.5";
-  chatBody.appendChild(typingDiv);
-  chatBody.scrollTop = chatBody.scrollHeight;
-  return id;
-}
+function renderBookings() {
+  const tbody = document.getElementById("bookingBody");
+  const empty = document.getElementById("emptyMsg");
+  tbody.innerHTML = "";
 
-function removeTyping(id) {
-  const el = document.getElementById(id);
-  if (el) el.remove();
-}
+  if (!bookings.length) {
+    empty.style.display = "block";
+    return;
+  }
+  empty.style.display = "none";
 
-// ===============================
-// ⌨️ ENTER TO SEND
-// ===============================
-document
-  .getElementById("chat-message")
-  .addEventListener("keypress", function (e) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
+  bookings.forEach((b, i) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${b.id}</td>
+      <td><strong>${b.name}</strong><br><small>${b.service}</small></td>
+      <td>${b.date}<br><small>${b.time}</small></td>
+      <td>
+        <a href="https://wa.me/${b.phone.replace(/\D/g,"")}?text=${encodeURIComponent(`Hi ${b.name}, this is Rynar Dental confirming your appointment on ${b.date} at ${b.time}. See you soon! 😊`)}"
+           target="_blank" class="wa-icon" title="WhatsApp patient">📲</a>
+        <button onclick="deleteBooking(${i})" class="del-btn" title="Delete">🗑</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
   });
+}
+
+function deleteBooking(i) {
+  if (!confirm("Remove this booking?")) return;
+  bookings.splice(i, 1);
+  localStorage.setItem("rynar_bookings", JSON.stringify(bookings));
+  renderBookings();
+}
+
+// ── Voice input ──────────────────────────────────
+function startListening() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { alert("Voice not supported in this browser."); return; }
+  const rec = new SR();
+  rec.lang  = "en-US";
+  rec.start();
+  rec.onresult = (e) => {
+    document.getElementById("user-input").value = e.results[0][0].transcript;
+    sendMessage();
+  };
+  rec.onerror = (e) => console.error("Voice error", e);
+}
+
+// ── Helpers ──────────────────────────────────────
+function appendMessage(sender, text) {
+  const box = document.getElementById("chat-box");
+  const div = document.createElement("div");
+  div.className = "message " + sender;
+  // Render *bold* markdown
+  div.innerHTML = text.replace(/\*([^*]+)\*/g, "<strong>$1</strong>").replace(/\n/g, "<br>");
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+function showTyping(show) {
+  document.getElementById("typing-indicator").classList.toggle("hidden", !show);
+}
+
+function playSound() {
+  try { document.getElementById("sendSound").play(); } catch(e) {}
+}
