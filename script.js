@@ -2,7 +2,7 @@
 // RYNAR DENTAL AI — script.js
 // ================================================
 
-const CLINIC_WA = "27000000000"; // your clinic WhatsApp number, no +
+const CLINIC_WA = "254757902314"; // your clinic WhatsApp number, no +
 
 // ── State ────────────────────────────────────────
 let chatHistory   = [];
