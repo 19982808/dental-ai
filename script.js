@@ -2,369 +2,399 @@
 // RYNAR DENTAL AI — script.js
 // ================================================
 
-const OPENAI_API_KEY = "AIzaSyCa1f9rjGA2BCXLhNkYaD2NHLW822X3X2o";
-
-// ── WhatsApp config ──────────────────────────────
-// Replace with your clinic's WhatsApp number (international format, no +)
-const WHATSAPP_NUMBER = "254757902314"; // e.g. 27821234567 for South Africa
+const CLINIC_WA = "27000000000"; // your clinic WhatsApp number, no +
 
 // ── State ────────────────────────────────────────
-let chatHistory     = [];
-let bookings        = JSON.parse(localStorage.getItem("rynar_bookings") || "[]");
-let collectingInfo  = false;
-let patientDraft    = {};
-let awaitingField   = null; // which field we're collecting next
-let imageAnalysisPending = false;
+let chatHistory   = [];
+let bookings      = JSON.parse(localStorage.getItem("rynar_bookings") || "[]");
+let awaitingField = null;
+let patientDraft  = {};
+let voiceOn       = true;
+let jazzOn        = false;
+let audioCtx      = null;
+let masterGain    = null;
+let jazzTimer     = null;
+let chordIdx      = 0;
+let chosenVoice   = null;
 
-// ── Booking flow fields ──────────────────────────
 const FIELDS = ["name", "phone", "date", "time", "service"];
-const FIELD_PROMPTS = {
+const PROMPTS = {
   name:    "What's your full name?",
-  phone:   "Great. What's your WhatsApp number? (with country code)",
-  date:    "What date would you like? (e.g. Monday 14 July or DD/MM/YYYY)",
-  time:    "What time works best for you? (morning, afternoon, or a specific time)",
-  service: "And what service are you coming in for? Checkup, cleaning, whitening, braces consultation, extraction, or something else?"
+  phone:   "What's your WhatsApp number? (with country code, e.g. +27…)",
+  date:    "What date would you like to come in?",
+  time:    "Morning or afternoon — or a specific time?",
+  service: "What are you coming in for? Checkup, cleaning, whitening, braces consult, extraction, or something else?"
 };
 
-// ── System prompt ────────────────────────────────
-const systemPrompt = `
-You are Rynar — a warm, professional, and slightly charming AI assistant for Rynar Dental, a premium dental clinic.
+// ── System prompt ─────────────────────────────────
+const SYSTEM = `You are Rynar — a warm, knowledgeable dental assistant for Rynar Dental, a premium clinic.
 
-YOUR PERSONALITY:
-- Friendly and reassuring. Dental visits make people nervous — you ease that.
-- Confident but never clinical-sounding. You're approachable.
-- Occasionally warm and light — not robotic. Not over-the-top either.
-- You care about the patient's comfort and smile.
+PERSONALITY:
+You are like a trusted friend who happens to know everything about dentistry.
+Warm, calm, reassuring — never clinical or robotic. Dental anxiety is real and you ease it.
+Light and personable. You use the patient's name once you know it.
+You keep the conversation going naturally — like a real person would.
 
-WHAT YOU DO:
-1. Answer dental FAQs — pain, procedures, costs, aftercare, general oral health advice.
-2. Help patients book appointments (the system handles the collection flow separately).
-3. Recommend relevant treatments based on what patients describe.
-4. Analyse smile/teeth images when uploaded and give friendly, helpful observations.
-5. Encourage patients to come in for a proper consultation when appropriate.
+HOW YOU TALK:
+- Respond naturally and conversationally — like texting a knowledgeable friend
+- Keep responses concise: 1-3 sentences for simple questions, more only when genuinely needed
+- Never use bullet points in casual conversation
+- Always acknowledge what they said before answering
+- Ask a follow-up question to keep the conversation going when appropriate
+- Never say "As an AI" or "I'm just a chatbot" — you are Rynar
+- Never say "Certainly!" "Absolutely!" "Of course!" — too robotic
+- If they say hi or greet you, greet them back warmly and ask how you can help their smile today
 
-DENTAL KNOWLEDGE — key areas:
-- Whitening: in-chair and take-home options, sensitivity management
-- Braces & Invisalign: process, duration, maintenance
-- Implants: procedure overview, healing time, cost range
-- Root canals: dispel fear, explain it's usually painless with anaesthetic
-- Extractions: wisdom teeth, recovery tips
-- Veneers & cosmetic work: what's possible, consultation needed
-- Gum health: signs of gingivitis, periodontitis, importance of cleaning
-- Children's dentistry: first visit age, sealants, fluoride
-- Emergency dental: cracked tooth, knocked out tooth, abscess — always recommend urgent visit
-
-IMAGE ANALYSIS:
-When a patient shares a photo of their teeth or smile:
-- Give warm, observant feedback ("Your smile has great natural shape…")
-- Note anything that might benefit from professional attention (discolouration, visible gaps, gum redness)
-- Always recommend a consultation for proper assessment
-- Never diagnose — observe and recommend
-
-TONE RULES:
-- No bullet lists in casual conversation
-- Keep responses under 80 words unless a detailed explanation is needed
-- Never say "As an AI" or "I'm just a chatbot"
-- Use the patient's name once you know it
-- End with a gentle nudge toward booking when relevant
+WHAT YOU KNOW:
+Teeth whitening, braces and Invisalign, dental implants, root canals (reassure — it's painless!),
+extractions and wisdom teeth, veneers and cosmetic work, gum health, children's dentistry,
+dental emergencies (always urgent), general oral hygiene tips.
 
 BOOKING:
 When someone wants to book, say something warm like:
-"I'd love to get you sorted — let me take a few quick details."
-The booking system will handle the rest.
-`;
+"I'd love to get you booked in — let me take a few quick details."
+The system will handle the rest.
 
-// ── Boot ─────────────────────────────────────────
-window.addEventListener("load", () => {
-  renderBookings();
+RULES:
+- Keep it human and warm at all times
+- If they seem nervous, be extra gentle and reassuring
+- Gently nudge toward booking when relevant but never pushy
+- Short responses always feel more human than long ones`;
 
-  // Hidden file input
-  const fileInput = document.createElement("input");
-  fileInput.type    = "file";
-  fileInput.accept  = "image/*";
-  fileInput.id      = "imageInput";
-  fileInput.style.display = "none";
-  fileInput.addEventListener("change", handleImageUpload);
-  document.body.appendChild(fileInput);
-
-  // Visible camera/upload button in input area
-  const inputArea = document.querySelector(".input-area");
-  const micBtn    = document.querySelector(".input-area .mic");
-  const uploadBtn = document.createElement("button");
-  uploadBtn.id        = "uploadImgBtn";
-  uploadBtn.title     = "Upload smile photo";
-  uploadBtn.innerHTML = "📷";
-  uploadBtn.onclick   = () => document.getElementById("imageInput").click();
-  inputArea.insertBefore(uploadBtn, micBtn);
-});
-
-// ── Send message ─────────────────────────────────
-async function sendMessage() {
-  const input = document.getElementById("user-input");
-  const text  = input.value.trim();
-  if (!text) return;
-
-  input.value = "";
-  playSound();
-  appendMessage("user", text);
-
-  // Booking flow intercept
-  if (awaitingField) {
-    await handleBookingField(text);
-    return;
+// ════════════════════════════════════════════════
+// VOICE — deep male, Web Speech API
+// ════════════════════════════════════════════════
+function loadVoices() {
+  const voices = speechSynthesis.getVoices();
+  if (!voices.length) return;
+  const preferred = [
+    "Google UK English Male",
+    "Microsoft George - English (United Kingdom)",
+    "Microsoft David - English (United States)",
+    "Daniel", "Alex", "Fred"
+  ];
+  for (const name of preferred) {
+    const v = voices.find(v => v.name === name);
+    if (v) { chosenVoice = v; return; }
   }
-
-  // Trigger booking flow
-  if (/book|appointment|schedule|come in|visit|slot/i.test(text)) {
-    appendMessage("ai", "I'd love to get you sorted — let me take a few quick details. " + FIELD_PROMPTS.name);
-    awaitingField = "name";
-    return;
-  }
-
-  // Image upload trigger
-  if (/photo|picture|image|look at|my teeth|my smile|upload/i.test(text)) {
-    appendMessage("ai", "Of course — go ahead and upload a photo of your smile or teeth and I'll take a look. 😊");
-    document.getElementById("imageInput").click();
-    return;
-  }
-
-  // Normal AI conversation
-  await askAI(text);
+  chosenVoice = voices.find(v =>
+    v.lang.startsWith("en") && /male|david|george|daniel|alex|fred/i.test(v.name)
+  ) || voices.find(v => v.lang.startsWith("en")) || voices[0];
 }
 
-// ── AI conversation ──────────────────────────────
-async function askAI(userMessage, extra = "") {
-  chatHistory.push({ role: "user", content: userMessage + extra });
-  if (chatHistory.length > 20) chatHistory = chatHistory.slice(-20);
+if (speechSynthesis.onvoiceschanged !== undefined) {
+  speechSynthesis.onvoiceschanged = loadVoices;
+}
 
+function speak(text) {
+  if (!voiceOn || !text) return;
+  speechSynthesis.cancel();
+  const clean = text.replace(/<[^>]*>/g, "").replace(/[*_]/g, "");
+  const utt   = new SpeechSynthesisUtterance(clean);
+  if (chosenVoice) utt.voice = chosenVoice;
+  utt.rate   = 0.85;
+  utt.pitch  = 0.75;
+  utt.volume = 1;
+  speechSynthesis.speak(utt);
+}
+
+function toggleVoice() {
+  voiceOn = !voiceOn;
+  const btn = document.getElementById("voiceBtn");
+  btn.classList.toggle("on", voiceOn);
+  btn.textContent = voiceOn ? "🔊" : "🔇";
+  if (!voiceOn) speechSynthesis.cancel();
+}
+
+// ════════════════════════════════════════════════
+// JAZZ — Web Audio API generative smooth jazz
+// ════════════════════════════════════════════════
+function freq(midi) { return 440 * Math.pow(2, (midi - 69) / 12); }
+
+const CHORDS = [
+  [62,65,69,74], [67,71,74,77], [65,69,72,76], [65,69,72,76],
+  [60,63,67,70], [65,69,72,75], [58,62,65,69], [58,62,65,69]
+];
+const BASS = [50,55,53,53,48,53,46,46];
+
+function playNote(midi, time, dur, type, vol) {
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.connect(g);
+  g.connect(masterGain);
+  o.type = type;
+  o.frequency.value = freq(midi);
+  o.detune.value    = (Math.random() - .5) * 7;
+  g.gain.setValueAtTime(0, time);
+  g.gain.linearRampToValueAtTime(vol, time + 0.07);
+  g.gain.exponentialRampToValueAtTime(0.0001, time + dur);
+  o.start(time);
+  o.stop(time + dur + .05);
+}
+
+function jazzBeat() {
+  const now  = audioCtx.currentTime;
+  const beat = 1.15;
+  const ch   = CHORDS[chordIdx % CHORDS.length];
+
+  ch.forEach((m, i) => playNote(m, now, beat * 1.7, "sine",     0.034 - i * 0.005));
+  playNote(BASS[chordIdx % BASS.length] - 12, now, beat * 1.6, "triangle", 0.07);
+
+  if (Math.random() > 0.42) {
+    const pent = [0,2,4,7,9];
+    const note = ch[0] + pent[Math.floor(Math.random() * pent.length)] + 12;
+    playNote(note, now + Math.random() * beat * .5, 0.3 + Math.random() * .5, "sine", 0.022);
+  }
+  chordIdx++;
+}
+
+function startJazz() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === "suspended") audioCtx.resume();
+
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = 0.5;
+
+  const delay = audioCtx.createDelay(2);
+  const fb    = audioCtx.createGain();
+  const wet   = audioCtx.createGain();
+  delay.delayTime.value = 0.3;
+  fb.gain.value  = 0.32;
+  wet.gain.value = 0.38;
+
+  masterGain.connect(delay);
+  delay.connect(fb);
+  fb.connect(delay);
+  delay.connect(wet);
+  wet.connect(audioCtx.destination);
+  masterGain.connect(audioCtx.destination);
+
+  jazzBeat();
+  jazzTimer = setInterval(jazzBeat, 1150);
+}
+
+function stopJazz() {
+  clearInterval(jazzTimer);
+  if (masterGain) {
+    masterGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.8);
+    setTimeout(() => { try { masterGain.disconnect(); } catch(e) {} }, 1000);
+  }
+}
+
+function toggleJazz() {
+  const btn = document.getElementById("jazzBtn");
+  jazzOn = !jazzOn;
+  btn.classList.toggle("on", jazzOn);
+  jazzOn ? startJazz() : stopJazz();
+}
+
+// ════════════════════════════════════════════════
+// AI CALL
+// ════════════════════════════════════════════════
+async function askAI(userMsg, imageBase64 = null) {
   showTyping(true);
 
+  const userContent = imageBase64
+    ? "The patient has uploaded a photo of their smile/teeth for analysis. Please give warm, encouraging observational feedback and recommend a consultation."
+    : userMsg;
+
+  chatHistory.push({ role: "user", content: userContent });
+  if (chatHistory.length > 20) chatHistory = chatHistory.slice(-20);
+
   try {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type":  "application/json",
-        "Authorization": `Bearer ${OPENAI_API_KEY}`
-      },
+    const res = await fetch("/api/chat", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model:             "gpt-4o",
+        model:             "llama3-8b-8192",
         messages: [
-          { role: "system", content: systemPrompt },
+          { role: "system", content: SYSTEM },
           ...chatHistory
         ],
-        temperature:       0.75,
-        max_tokens:        200,
+        temperature:       0.78,
+        max_tokens:        250,
         frequency_penalty: 0.5,
         presence_penalty:  0.3
       })
     });
 
-    if (!res.ok) throw new Error(res.status);
-    const data  = await res.json();
+    const data = await res.json();
+
+    if (!res.ok) {
+      showTyping(false);
+      const msg = data?.error?.message || res.status;
+      console.error("API error:", msg);
+      if (res.status === 401) return "⚠️ API key issue — check your GROQ_API_KEY in Vercel environment variables.";
+      if (res.status === 404) return "⚠️ Model not found — check your Groq account.";
+      if (res.status === 429) return "Getting a lot of requests right now — give me a second and try again.";
+      return "Something went wrong on my end. Try again in a moment.";
+    }
+
     const reply = data.choices[0].message.content.trim();
     chatHistory.push({ role: "assistant", content: reply });
     showTyping(false);
-    appendMessage("ai", reply);
+    return reply;
 
   } catch (e) {
     showTyping(false);
-    appendMessage("ai", "Something went wrong on my end — give me a moment and try again. 🙏");
-    console.error(e);
+    console.error("Fetch error:", e);
+    return "I lost my connection for a second — try again?";
   }
 }
 
-// ── Image upload & analysis ──────────────────────
-async function handleImageUpload(e) {
-  const file = e.target.files[0];
-  if (!file) return;
+// ════════════════════════════════════════════════
+// SEND MESSAGE
+// ════════════════════════════════════════════════
+async function sendMessage() {
+  const input = document.getElementById("user-input");
+  const text  = input.value.trim();
+  if (!text) return;
+  input.value = "";
 
-  const reader = new FileReader();
-  reader.onload = async (ev) => {
-    const base64 = ev.target.result; // data:image/...;base64,...
-    appendImagePreview(base64);
-    showTyping(true);
+  appendMessage("user", text);
 
-    try {
-      const res = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type":  "application/json",
-          "Authorization": `Bearer ${OPENAI_API_KEY}`
-        },
-        body: JSON.stringify({
-          model: "gpt-4o",
-          messages: [
-            { role: "system", content: systemPrompt },
-            {
-              role: "user",
-              content: [
-                {
-                  type: "image_url",
-                  image_url: { url: base64, detail: "high" }
-                },
-                {
-                  type: "text",
-                  text: "Please analyse this patient's smile/teeth photo and give warm, observant feedback. Note anything worth discussing at a consultation. Don't diagnose — just observe and recommend a visit if helpful."
-                }
-              ]
-            }
-          ],
-          max_tokens: 250
-        })
-      });
+  if (awaitingField) {
+    await handleBookingField(text);
+    return;
+  }
 
-      if (!res.ok) throw new Error(res.status);
-      const data  = await res.json();
-      const reply = data.choices[0].message.content.trim();
-      showTyping(false);
-      appendMessage("ai", reply);
-      chatHistory.push({ role: "assistant", content: reply });
+  if (/\b(book|appointment|schedule|come in|visit|slot|reserve)\b/i.test(text)) {
+    awaitingField = "name";
+    const reply = "I'd love to get you sorted — let me take a few quick details. " + PROMPTS.name;
+    appendMessage("ai", reply);
+    speak(reply);
+    return;
+  }
 
-    } catch (err) {
-      showTyping(false);
-      appendMessage("ai", "I had trouble reading that image. Could you try uploading it again?");
-      console.error(err);
-    }
+  if (/\b(photo|picture|image|look at|my teeth|my smile|upload|show you)\b/i.test(text)) {
+    const reply = "Of course — tap the 📷 button and upload your photo. I'll take a careful look 😊";
+    appendMessage("ai", reply);
+    speak(reply);
+    return;
+  }
 
-    // Reset file input
-    e.target.value = "";
-  };
-
-  reader.readAsDataURL(file);
+  const reply = await askAI(text);
+  appendMessage("ai", reply);
+  speak(reply);
 }
 
-function appendImagePreview(src) {
-  const box  = document.getElementById("chat-box");
-  const wrap = document.createElement("div");
-  wrap.className = "message user";
-  const img = document.createElement("img");
-  img.src   = src;
-  img.style.cssText = "max-width:200px; border-radius:10px; margin-top:6px; display:block;";
-  wrap.appendChild(img);
-  box.appendChild(wrap);
-  box.scrollTop = box.scrollHeight;
-}
-
-// ── Booking collection flow ──────────────────────
+// ════════════════════════════════════════════════
+// BOOKING FLOW
+// ════════════════════════════════════════════════
 async function handleBookingField(value) {
   patientDraft[awaitingField] = value;
-  const fields = FIELDS;
-  const idx    = fields.indexOf(awaitingField);
+  const idx = FIELDS.indexOf(awaitingField);
 
-  if (idx < fields.length - 1) {
-    awaitingField = fields[idx + 1];
-    appendMessage("ai", FIELD_PROMPTS[awaitingField]);
+  if (idx < FIELDS.length - 1) {
+    awaitingField = FIELDS[idx + 1];
+    appendMessage("ai", PROMPTS[awaitingField]);
+    speak(PROMPTS[awaitingField]);
   } else {
-    // All fields collected
     awaitingField = null;
     await confirmBooking();
   }
 }
 
 async function confirmBooking() {
-  const b = patientDraft;
+  const b  = patientDraft;
   const id = "RD" + Date.now().toString().slice(-5);
-
-  const booking = {
-    id,
-    name:    b.name,
-    phone:   b.phone,
-    date:    b.date,
-    time:    b.time,
-    service: b.service,
-    bookedAt: new Date().toLocaleString()
-  };
+  const booking = { id, ...b, bookedAt: new Date().toLocaleString() };
 
   bookings.push(booking);
   localStorage.setItem("rynar_bookings", JSON.stringify(bookings));
   renderBookings();
 
-  // Build WhatsApp message
-  const waMsg = encodeURIComponent(
+  const patientMsg = encodeURIComponent(
     `✅ *Rynar Dental — Booking Confirmed*\n\n` +
-    `📋 Ref: ${id}\n` +
-    `👤 Name: ${b.name}\n` +
-    `📅 Date: ${b.date}\n` +
-    `🕐 Time: ${b.time}\n` +
-    `🦷 Service: ${b.service}\n\n` +
-    `We look forward to seeing your smile! If you need to reschedule, just reply to this message.\n\n` +
-    `— Rynar Dental Team`
+    `📋 Ref: ${id}\n👤 ${b.name}\n📅 ${b.date} at ${b.time}\n🦷 ${b.service}\n\n` +
+    `We look forward to seeing your smile! To reschedule just reply here.\n— Rynar Dental`
   );
-
-  const waLink = `https://wa.me/${b.phone.replace(/\D/g, "")}?text=${waMsg}`;
-
-  appendMessage("ai",
-    `All done, ${b.name}! ✅ Your appointment is confirmed for ${b.date} at ${b.time} for a ${b.service}.\n\n` +
-    `We've got your reference: *${id}*.\n\n` +
-    `Tap below to send your confirmation via WhatsApp 👇`
-  );
-
-  // WhatsApp button
-  const box = document.getElementById("chat-box");
-  const btn = document.createElement("a");
-  btn.href      = waLink;
-  btn.target    = "_blank";
-  btn.className = "wa-btn";
-  btn.innerHTML = `<span>📲</span> Send Confirmation on WhatsApp`;
-  box.appendChild(btn);
-  box.scrollTop = box.scrollHeight;
-
-  // Also send clinic notification
   const clinicMsg = encodeURIComponent(
-    `🦷 *New Rynar Dental Booking*\n\n` +
-    `Ref: ${id}\n` +
-    `Patient: ${b.name}\n` +
-    `Phone: ${b.phone}\n` +
-    `Date: ${b.date} at ${b.time}\n` +
-    `Service: ${b.service}\n` +
-    `Booked: ${booking.bookedAt}`
+    `🦷 *New Booking — Rynar Dental*\n\nRef: ${id}\nPatient: ${b.name}\nPhone: ${b.phone}\nDate: ${b.date} at ${b.time}\nService: ${b.service}\nBooked: ${booking.bookedAt}`
   );
 
-  const clinicLink = `https://wa.me/${WHATSAPP_NUMBER}?text=${clinicMsg}`;
-  const clinicBtn  = document.createElement("a");
-  clinicBtn.href      = clinicLink;
-  clinicBtn.target    = "_blank";
-  clinicBtn.className = "wa-btn clinic";
-  clinicBtn.innerHTML = `<span>🏥</span> Notify Clinic on WhatsApp`;
-  box.appendChild(clinicBtn);
-  box.scrollTop = box.scrollHeight;
+  const waPatient = `https://wa.me/${b.phone.replace(/\D/g, "")}?text=${patientMsg}`;
+  const waClinic  = `https://wa.me/${CLINIC_WA}?text=${clinicMsg}`;
 
-  patientDraft = {};
+  const reply = `All done, ${b.name}! ✅ You're booked for ${b.date} at ${b.time} — ${b.service}. Your reference is *${id}*. Tap below to get your confirmation on WhatsApp 👇`;
+  appendMessage("ai", reply);
+  speak(`All done ${b.name}, you're booked for ${b.date} at ${b.time}. See you soon!`);
+
+  const box = document.getElementById("chat-box");
+
+  const a1 = document.createElement("a");
+  a1.href = waPatient; a1.target = "_blank"; a1.className = "wa-btn";
+  a1.innerHTML = "📲 Send My Confirmation on WhatsApp";
+  box.appendChild(a1);
+
+  const a2 = document.createElement("a");
+  a2.href = waClinic; a2.target = "_blank"; a2.className = "wa-btn clinic";
+  a2.innerHTML = "🏥 Notify Clinic on WhatsApp";
+  box.appendChild(a2);
+
+  box.scrollTop = box.scrollHeight;
+  patientDraft  = {};
 }
 
-// ── Admin dashboard ──────────────────────────────
+// ════════════════════════════════════════════════
+// IMAGE UPLOAD
+// ════════════════════════════════════════════════
+async function handleImageUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  e.target.value = "";
+
+  const reader = new FileReader();
+  reader.onload = async (ev) => {
+    const b64  = ev.target.result;
+    const box  = document.getElementById("chat-box");
+    const wrap = document.createElement("div");
+    wrap.className = "message user";
+    const img  = document.createElement("img");
+    img.src = b64;
+    img.style.cssText = "max-width:190px;border-radius:10px;margin-top:4px;display:block";
+    wrap.appendChild(img);
+    box.appendChild(wrap);
+    box.scrollTop = box.scrollHeight;
+
+    const reply = await askAI("Please analyse this smile photo.", b64);
+    appendMessage("ai", reply);
+    speak(reply);
+  };
+  reader.readAsDataURL(file);
+}
+
+// ════════════════════════════════════════════════
+// ADMIN
+// ════════════════════════════════════════════════
 function toggleAdmin() {
-  const chat  = document.getElementById("chatView");
-  const admin = document.getElementById("adminView");
-  const isAdmin = admin.style.display !== "none";
-  chat.style.display  = isAdmin ? "flex"  : "none";
-  admin.style.display = isAdmin ? "none"  : "block";
-  if (!isAdmin) renderBookings();
+  const cv      = document.getElementById("chatView");
+  const av      = document.getElementById("adminView");
+  const showing = av.style.display === "block";
+  cv.style.display = showing ? "flex"  : "none";
+  av.style.display = showing ? "none"  : "block";
+  if (!showing) renderBookings();
 }
 
 function renderBookings() {
   const tbody = document.getElementById("bookingBody");
   const empty = document.getElementById("emptyMsg");
   tbody.innerHTML = "";
-
-  if (!bookings.length) {
-    empty.style.display = "block";
-    return;
-  }
+  if (!bookings.length) { empty.style.display = "block"; return; }
   empty.style.display = "none";
 
   bookings.forEach((b, i) => {
-    const tr = document.createElement("tr");
+    const phone = b.phone.replace(/\D/g, "");
+    const msg   = encodeURIComponent(`Hi ${b.name}, confirming your Rynar Dental appointment on ${b.date} at ${b.time}. See you soon! 😊`);
+    const tr    = document.createElement("tr");
     tr.innerHTML = `
-      <td>${b.id}</td>
-      <td><strong>${b.name}</strong><br><small>${b.service}</small></td>
+      <td style="font-size:11px;color:var(--muted)">${b.id}</td>
+      <td><strong>${b.name}</strong><br><small>${b.service}</small><br><small>${b.phone}</small></td>
       <td>${b.date}<br><small>${b.time}</small></td>
       <td>
-        <a href="https://wa.me/${b.phone.replace(/\D/g,"")}?text=${encodeURIComponent(`Hi ${b.name}, this is Rynar Dental confirming your appointment on ${b.date} at ${b.time}. See you soon! 😊`)}"
-           target="_blank" class="wa-icon" title="WhatsApp patient">📲</a>
-        <button onclick="deleteBooking(${i})" class="del-btn" title="Delete">🗑</button>
-      </td>
-    `;
+        <a href="https://wa.me/${phone}?text=${msg}" target="_blank" class="wa-icon" title="WhatsApp">📲</a>
+        <button class="del-btn" onclick="deleteBooking(${i})" title="Delete">🗑</button>
+      </td>`;
     tbody.appendChild(tr);
   });
 }
@@ -376,35 +406,69 @@ function deleteBooking(i) {
   renderBookings();
 }
 
-// ── Voice input ──────────────────────────────────
+// ════════════════════════════════════════════════
+// VOICE INPUT
+// ════════════════════════════════════════════════
 function startListening() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { alert("Voice not supported in this browser."); return; }
-  const rec = new SR();
-  rec.lang  = "en-US";
-  rec.start();
-  rec.onresult = (e) => {
-    document.getElementById("user-input").value = e.results[0][0].transcript;
-    sendMessage();
-  };
-  rec.onerror = (e) => console.error("Voice error", e);
+  if (!SR) {
+    appendMessage("ai", "Voice input works best in Chrome — give that a try 😊");
+    return;
+  }
+  navigator.mediaDevices.getUserMedia({ audio: true })
+    .then(() => {
+      const r   = new SR();
+      r.lang    = "en-US";
+      const mic = document.querySelector(".ia-btn.sec");
+      if (mic) mic.textContent = "🔴";
+      r.start();
+      r.onresult = e => {
+        document.getElementById("user-input").value = e.results[0][0].transcript;
+        if (mic) mic.textContent = "🎤";
+        sendMessage();
+      };
+      r.onerror = e => {
+        if (mic) mic.textContent = "🎤";
+        if (e.error === "not-allowed") {
+          appendMessage("ai", "Mic access was blocked — allow microphone permission in your browser settings and try again.");
+        }
+      };
+      r.onend = () => { if (mic) mic.textContent = "🎤"; };
+    })
+    .catch(() => {
+      appendMessage("ai", "I need microphone access for voice input — please allow it in your browser settings.");
+    });
 }
 
-// ── Helpers ──────────────────────────────────────
+// ════════════════════════════════════════════════
+// HELPERS
+// ════════════════════════════════════════════════
 function appendMessage(sender, text) {
   const box = document.getElementById("chat-box");
   const div = document.createElement("div");
   div.className = "message " + sender;
-  // Render *bold* markdown
-  div.innerHTML = text.replace(/\*([^*]+)\*/g, "<strong>$1</strong>").replace(/\n/g, "<br>");
+  div.innerHTML = text
+    .replace(/\*([^*]+)\*/g, "<strong>$1</strong>")
+    .replace(/\n/g, "<br>");
   box.appendChild(div);
   box.scrollTop = box.scrollHeight;
 }
 
 function showTyping(show) {
   document.getElementById("typing-indicator").classList.toggle("hidden", !show);
+  if (show) document.getElementById("chat-box").scrollTop = 9999;
 }
 
-function playSound() {
-  try { document.getElementById("sendSound").play(); } catch(e) {}
-}
+// ════════════════════════════════════════════════
+// BOOT
+// ════════════════════════════════════════════════
+window.addEventListener("load", () => {
+  loadVoices();
+  renderBookings();
+  setTimeout(() => {
+    loadVoices();
+    const greet = "Hello… I'm Rynar, your personal dental AI 🦷 Whether you have questions about your smile, want to explore treatments, or you're ready to book — I'm here. What can I help you with today?";
+    appendMessage("ai", greet);
+    setTimeout(() => speak(greet), 400);
+  }, 700);
+});
