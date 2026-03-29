@@ -1,27 +1,30 @@
 // ==========================
 // 🔐 CONFIG
 // ==========================
-const API_KEY = "AIzaSyDQLQnELoeNGQ08JuxF80wGiRoSIFcOhO4"; 
-
-// 🔥 FIREBASE CONFIG (PASTE YOURS HERE)
+const API_KEY = "AIzaSyCv9vt4fIty-hNuqmOPGV1E2Kl5ON9HOqA"; 
+// ==========================
+// 🔥 FIREBASE CONFIG
+// ==========================
 const firebaseConfig = {
   apiKey: "AIzaSyBeKmA7f8vHyp9ixFXv0B4mINmanVNvVGA",
   authDomain: "rynardental-68613.firebaseapp.com",
   projectId: "rynardental-68613",
   storageBucket: "rynardental-68613.firebasestorage.app",
   messagingSenderId: "789923911514",
-  appId: "1:789923911514:web:da65c19f7c8c7060964563",
-  measurementId: "G-ZLVKGF0NWS"
+  appId: "1:789923911514:web:da65c19f7c8c7060964563"
 };
 
-// ==========================
-// 🔥 INIT FIREBASE
-// ==========================
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+let db = null;
+
+try {
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.firestore();
+} catch (e) {
+  console.warn("Firebase not available:", e);
+}
 
 // ==========================
-// 🧠 USER MEMORY (CLOUD)
+// 🧠 USER MEMORY
 // ==========================
 let memory = {
   name: null,
@@ -32,70 +35,89 @@ let memory = {
 const USER_ID = localStorage.getItem("ryn_user") || "user_" + Date.now();
 localStorage.setItem("ryn_user", USER_ID);
 
-// LOAD MEMORY FROM FIREBASE
+// LOAD MEMORY
 async function loadMemory(){
-  const doc = await db.collection("patients").doc(USER_ID).get();
-  if(doc.exists){
-    memory = doc.data();
+  try {
+    if(!db) return;
+
+    const doc = await db.collection("patients").doc(USER_ID).get();
+    if(doc.exists){
+      memory = doc.data();
+    }
+  } catch(e){
+    console.warn("Memory load failed");
   }
 }
 
 // SAVE MEMORY
 async function saveMemory(){
-  await db.collection("patients").doc(USER_ID).set(memory);
+  try {
+    if(!db) return;
+    await db.collection("patients").doc(USER_ID).set(memory);
+  } catch(e){
+    console.warn("Memory save failed");
+  }
 }
 
 // ==========================
-// 📊 BOOKINGS (CLOUD)
+// 📊 BOOKINGS
 // ==========================
 async function addBooking(name, date){
-  await db.collection("bookings").add({
-    name,
-    date,
-    userId: USER_ID,
-    timestamp: new Date()
-  });
-}
+  try {
+    if(!db) return;
 
-// REAL-TIME BOOKINGS (ADMIN)
-function listenBookings(){
-  const body = document.getElementById('bookingBody');
-  const empty = document.getElementById('emptyMsg');
-
-  db.collection("bookings")
-    .orderBy("timestamp", "desc")
-    .onSnapshot(snapshot => {
-
-      body.innerHTML = "";
-
-      if(snapshot.empty){
-        empty.style.display = "block";
-        return;
-      }
-
-      empty.style.display = "none";
-
-      let i = 1;
-
-      snapshot.forEach(doc => {
-        const b = doc.data();
-
-        const row = document.createElement("tr");
-        row.innerHTML = `
-          <td>${i++}</td>
-          <td>${b.name}</td>
-          <td>${b.date}</td>
-          <td><button onclick="deleteBooking('${doc.id}')">Delete</button></td>
-        `;
-        body.appendChild(row);
-      });
+    await db.collection("bookings").add({
+      name,
+      date,
+      userId: USER_ID,
+      timestamp: new Date()
     });
+  } catch(e){
+    console.warn("Booking failed");
+  }
 }
 
-// DELETE BOOKING
-async function deleteBooking(id){
-  if(confirm("Delete booking?")){
-    await db.collection("bookings").doc(id).delete();
+// SAFE LISTENER
+function listenBookings(){
+  try {
+    if(!db) return;
+
+    const body = document.getElementById('bookingBody');
+    const empty = document.getElementById('emptyMsg');
+
+    if(!body || !empty) return;
+
+    db.collection("bookings")
+      .orderBy("timestamp", "desc")
+      .onSnapshot(snapshot => {
+
+        body.innerHTML = "";
+
+        if(snapshot.empty){
+          empty.style.display = "block";
+          return;
+        }
+
+        empty.style.display = "none";
+
+        let i = 1;
+
+        snapshot.forEach(doc => {
+          const b = doc.data();
+
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${i++}</td>
+            <td>${b.name}</td>
+            <td>${b.date}</td>
+            <td><button onclick="deleteBooking('${doc.id}')">Delete</button></td>
+          `;
+          body.appendChild(row);
+        });
+      });
+
+  } catch(e){
+    console.warn("Booking listener failed");
   }
 }
 
@@ -104,8 +126,9 @@ async function deleteBooking(id){
 // ==========================
 function addMessage(text, sender){
   const chat = document.getElementById("chat-box");
-  const div = document.createElement("div");
+  if(!chat) return;
 
+  const div = document.createElement("div");
   div.className = "message " + sender;
   div.innerText = text;
 
@@ -114,28 +137,31 @@ function addMessage(text, sender){
 }
 
 function showTyping(){
-  document.getElementById("typing-indicator").classList.remove("hidden");
+  const el = document.getElementById("typing-indicator");
+  if(el) el.classList.remove("hidden");
 }
 
 function hideTyping(){
-  document.getElementById("typing-indicator").classList.add("hidden");
+  const el = document.getElementById("typing-indicator");
+  if(el) el.classList.add("hidden");
 }
 
 // ==========================
-// 🔊 VOICE (DEEP MALE)
+// 🔊 VOICE
 // ==========================
 function speak(text){
-  const speech = new SpeechSynthesisUtterance(text);
+  try {
+    const speech = new SpeechSynthesisUtterance(text);
+    speech.pitch = 0.6;
+    speech.rate = 0.85;
 
-  speech.pitch = 0.6;
-  speech.rate = 0.85;
+    const voices = speechSynthesis.getVoices();
+    speech.voice = voices.find(v =>
+      v.name.toLowerCase().includes("male")
+    ) || voices[0];
 
-  const voices = speechSynthesis.getVoices();
-  speech.voice = voices.find(v =>
-    v.name.toLowerCase().includes("male")
-  ) || voices[0];
-
-  speechSynthesis.speak(speech);
+    speechSynthesis.speak(speech);
+  } catch(e){}
 }
 
 // ==========================
@@ -168,7 +194,7 @@ function analyzeSymptoms(msg){
 }
 
 // ==========================
-// 🧠 FALLBACK
+// 🧠 FALLBACK (SMART BRAIN)
 // ==========================
 function smartFallback(msg){
   msg = msg.toLowerCase();
@@ -190,7 +216,7 @@ function smartFallback(msg){
     return analyzeSymptoms(msg);
   }
 
-  if(msg.includes("appointment")){
+  if(msg.includes("appointment") || msg.includes("book")){
     return "Let’s secure your booking. I’ve got you.";
   }
 
@@ -198,12 +224,12 @@ function smartFallback(msg){
 }
 
 // ==========================
-// 🤖 GEMINI AI
+// 🤖 GEMINI AI (SAFE)
 // ==========================
 async function getGeminiResponse(userMessage){
 
   const systemPrompt = `
-You are Rynar, an elite dental AI assistant.
+You are Rynar, a high-end dental AI assistant.
 
 Patient:
 Name: ${memory.name || "Unknown"}
@@ -213,12 +239,9 @@ Pain Level: ${memory.painLevel || "Unknown"}
 Tone:
 - Confident
 - Calm
-- Masculine deep
-- Charming,sexy but professional
+- Professional
 
-Behavior:
-- Give real dental advice
-- Ask follow-up questions
+Give useful dental guidance and ask follow-ups.
 `;
 
   try {
@@ -236,6 +259,12 @@ Behavior:
     );
 
     const data = await res.json();
+
+    if(data.error){
+      console.error("API ERROR:", data.error);
+      return smartFallback(userMessage);
+    }
+
     let text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if(text && text.trim().length > 5){
@@ -245,7 +274,7 @@ Behavior:
     return smartFallback(userMessage);
 
   } catch (err) {
-    console.error(err);
+    console.error("Gemini failed:", err);
     return smartFallback(userMessage);
   }
 }
@@ -260,36 +289,58 @@ function sendToWhatsApp(name, date){
 }
 
 // ==========================
-// 🚀 SEND MESSAGE
+// 🚀 SEND MESSAGE (BULLETPROOF)
 // ==========================
 async function sendMessage(){
-  const input = document.getElementById("user-input");
-  const message = input.value.trim();
-  if(!message) return;
+  try {
+    const input = document.getElementById("user-input");
 
-  addMessage(message, "user");
-  input.value = "";
+    if(!input){
+      alert("Input box missing");
+      return;
+    }
 
-  showTyping();
+    const message = input.value.trim();
+    if(!message) return;
 
-  const reply = await getGeminiResponse(message);
+    addMessage(message, "user");
+    input.value = "";
 
-  hideTyping();
-  addMessage(reply, "ai");
-  speak(reply);
+    showTyping();
 
-  const msg = message.toLowerCase();
+    let reply = "";
 
-  if(msg.includes("appointment") || msg.includes("book")){
-    const name = memory.name || "Patient";
-    const date = new Date().toLocaleDateString();
+    try {
+      reply = await getGeminiResponse(message);
+    } catch (err) {
+      console.error("AI error:", err);
+    }
 
-    await addBooking(name, date);
+    if(!reply || reply.length < 2){
+      reply = smartFallback(message);
+    }
 
-    setTimeout(()=>{
-      addMessage("You're booked. Confirming via WhatsApp now.", "ai");
-      sendToWhatsApp(name, date);
-    }, 800);
+    hideTyping();
+    addMessage(reply, "ai");
+    speak(reply);
+
+    const msg = message.toLowerCase();
+
+    if(msg.includes("appointment") || msg.includes("book")){
+      const name = memory.name || "Patient";
+      const date = new Date().toLocaleDateString();
+
+      await addBooking(name, date);
+
+      setTimeout(()=>{
+        addMessage("You're booked. Confirming via WhatsApp now.", "ai");
+        sendToWhatsApp(name, date);
+      }, 800);
+    }
+
+  } catch (err) {
+    console.error("SEND CRASH:", err);
+    alert("App crashed — check console.");
   }
 }
 
