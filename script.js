@@ -1,19 +1,14 @@
 // ===============================
-// ELEMENTS (SAFE LOAD)
+// ELEMENTS (MATCH HTML)
 // ===============================
-const chatBody = document.getElementById("chat-body");
-const chatInput = document.getElementById("chat-message");
+const chatBody = document.getElementById("chat-box");
+const chatInput = document.getElementById("user-input");
 const sendBtn = document.getElementById("send-btn");
 
-// Prevent crashes if elements missing
-if (!chatBody || !chatInput || !sendBtn) {
-  console.error("Chat elements missing in HTML");
-}
-
 // ===============================
-// EVENT LISTENERS (FIXED)
+// EVENTS (FIXED)
 // ===============================
-sendBtn.onclick = sendMessage;
+sendBtn.addEventListener("click", sendMessage);
 
 chatInput.addEventListener("keydown", function (e) {
   if (e.key === "Enter") {
@@ -23,24 +18,20 @@ chatInput.addEventListener("keydown", function (e) {
 });
 
 // ===============================
-// ADD MESSAGE (WITH IMAGE SUPPORT)
+// ADD MESSAGE
 // ===============================
 function addMessage(text, sender = "bot") {
   const msg = document.createElement("div");
   msg.className = sender === "user" ? "user-message" : "bot-message";
 
-  // Image parsing
   if (text.includes("[IMAGE:")) {
-    const splitText = text.split("[IMAGE:");
-    const mainText = splitText[0];
-    const imageQuery = splitText[1].replace("]", "").trim();
+    const parts = text.split("[IMAGE:");
+    msg.innerText = parts[0];
 
-    const textNode = document.createElement("div");
-    textNode.innerText = mainText;
-    msg.appendChild(textNode);
+    const query = parts[1].replace("]", "").trim();
 
     const img = document.createElement("img");
-    img.src = `https://source.unsplash.com/400x300/?${encodeURIComponent(imageQuery)}`;
+    img.src = `https://source.unsplash.com/400x300/?${encodeURIComponent(query)}`;
     img.style.width = "100%";
     img.style.marginTop = "10px";
     img.style.borderRadius = "10px";
@@ -55,137 +46,97 @@ function addMessage(text, sender = "bot") {
 }
 
 // ===============================
-// PERSONALITY (NATURAL, NOT FORCED)
+// PERSONALITY
 // ===============================
 function tone(text) {
   const extras = [
+    "I’ve got you.",
     "We’ll figure it out.",
-    "You’re okay, I’ve got you.",
-    "Let’s sort it out together.",
-    "Nothing to stress about yet."
+    "You’re okay.",
+    "Let’s sort this."
   ];
   return text + "\n\n" + extras[Math.floor(Math.random() * extras.length)];
 }
 
 // ===============================
-// MEMORY (FOR FLOW)
+// MEMORY
 // ===============================
-let context = {
-  lastTopic: null
-};
+let context = { lastTopic: null };
 
 // ===============================
-// DENTAL KNOWLEDGE ENGINE
+// DENTAL INTELLIGENCE
 // ===============================
-function dentalBrain(input) {
+function analyze(input) {
   input = input.toLowerCase();
 
-  // Sensitivity
   if (input.includes("cold") || input.includes("hot")) {
     context.lastTopic = "sensitivity";
-    return tone(
-      "That sounds like sensitivity.\n\nIs it a quick sharp pain or does it linger?"
-    );
+    return tone("Sounds like sensitivity.\n\nIs it quick pain or lingering?");
   }
 
-  // Bite pain
   if (input.includes("bite") || input.includes("chew")) {
     context.lastTopic = "bite";
-    return tone(
-      "Pain when biting usually means a crack or cavity.\n\nDoes it only hurt when chewing?"
-    );
+    return tone("Pain when biting could mean a crack or cavity.\n\nOnly when chewing?");
   }
 
-  // Deep pain
   if (input.includes("throbbing") || input.includes("constant")) {
     context.lastTopic = "root";
     return tone(
-      "That kind of pain can mean the nerve is affected.\n\nA root canal might be needed to remove the infection.\n\n[IMAGE: root canal procedure diagram]"
+      "That might involve the nerve.\n\nYou may need a root canal.\n\n[IMAGE: root canal procedure]"
     );
   }
 
-  // Cavity
-  if (input.includes("hole") || input.includes("cavity")) {
+  if (input.includes("cavity") || input.includes("hole")) {
     context.lastTopic = "filling";
     return tone(
-      "That’s likely a cavity.\n\nA filling will clean it out and seal the tooth before it gets worse.\n\n[IMAGE: dental filling diagram]"
+      "That’s a cavity.\n\nA filling will fix it.\n\n[IMAGE: dental filling]"
     );
   }
 
-  // Gum issues
-  if (input.includes("gum") || input.includes("bleeding")) {
+  if (input.includes("gum") || input.includes("bleed")) {
     context.lastTopic = "gums";
-    return tone(
-      "That could be gum inflammation.\n\nDo your gums bleed when brushing?"
-    );
+    return tone("That could be gum inflammation.\n\nDo they bleed when brushing?");
   }
 
   return null;
 }
 
 // ===============================
-// MAIN RESPONSE SYSTEM
+// MAIN RESPONSE
 // ===============================
-function respond(input) {
+function reply(input) {
   const lower = input.toLowerCase();
 
-  // Greeting
   if (["hi", "hello", "hey"].includes(lower)) {
-    return tone(
-      "Hey.\n\nWhat’s going on — just checking in or something bothering you?"
-    );
+    return tone("Hey.\n\nWhat’s going on?");
   }
 
-  // Pain start
   if (lower.includes("tooth") || lower.includes("pain")) {
-    return tone(
-      "Tooth pain isn’t random.\n\nTell me what it feels like — sharp, dull, when eating, cold?"
-    );
+    return tone("Tell me what it feels like — sharp, dull, cold?");
   }
 
-  // Procedures
   if (lower.includes("filling")) {
-    context.lastTopic = "filling";
     return tone(
-      "A filling removes decay and seals your tooth.\n\nIt’s quick and stops the damage from spreading.\n\n[IMAGE: dental filling]"
+      "A filling removes decay and protects your tooth.\n\n[IMAGE: dental filling diagram]"
     );
   }
 
   if (lower.includes("root canal")) {
-    context.lastTopic = "root";
     return tone(
-      "A root canal removes infection inside your tooth.\n\nIt actually stops pain and saves the tooth.\n\n[IMAGE: root canal]"
-    );
-  }
-
-  if (lower.includes("crown")) {
-    context.lastTopic = "crown";
-    return tone(
-      "A crown covers and protects a damaged tooth.\n\nThink of it like armor for your tooth.\n\n[IMAGE: dental crown]"
+      "A root canal removes infection and saves your tooth.\n\n[IMAGE: root canal diagram]"
     );
   }
 
   if (lower.includes("braces") || lower.includes("invisalign")) {
     return tone(
-      "Braces and Invisalign both straighten teeth.\n\nBraces stay on, Invisalign is removable.\n\n[IMAGE: braces invisalign]"
+      "Braces are fixed, Invisalign is removable.\n\n[IMAGE: braces invisalign]"
     );
   }
 
-  // Context follow-up
-  if (context.lastTopic === "sensitivity" && lower.includes("linger")) {
-    return tone(
-      "If it lingers, that’s deeper than normal sensitivity.\n\nYou might need a root canal."
-    );
-  }
-
-  // Symptom detection
-  const smart = dentalBrain(input);
+  const smart = analyze(input);
   if (smart) return smart;
 
-  // Fallback
-  return tone(
-    "Explain it a bit more so I don’t guess wrong.\n\nWhere exactly does it hurt?"
-  );
+  return tone("Tell me more so I understand properly.");
 }
 
 // ===============================
@@ -199,19 +150,13 @@ function sendMessage() {
   chatInput.value = "";
 
   setTimeout(() => {
-    const reply = respond(text);
-    addMessage(reply, "bot");
+    addMessage(reply(text), "bot");
   }, 400);
 }
 
 // ===============================
-// START MESSAGE
+// START
 // ===============================
 window.onload = () => {
-  setTimeout(() => {
-    addMessage(
-      "Hey.\n\nTalk to me — what’s going on?",
-      "bot"
-    );
-  }, 600);
+  addMessage("Hey.\n\nWhat’s going on?", "bot");
 };
