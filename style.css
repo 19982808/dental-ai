@@ -1,6 +1,5 @@
 /* ================================================
    RYNAR DENTAL AI — style.css
-   Premium dark dental theme
    ================================================ */
 
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
@@ -43,7 +42,7 @@ body::before {
   z-index: 0;
 }
 
-/* ── App shell ── */
+/* ── App ── */
 .app {
   position: relative; z-index: 1;
   display: flex; flex-direction: column;
@@ -63,7 +62,6 @@ body::before {
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
-
 .logo {
   width: 44px; height: 44px;
   background: linear-gradient(135deg, var(--teal-dim), var(--teal));
@@ -72,21 +70,10 @@ body::before {
   font-size: 24px; flex-shrink: 0;
   box-shadow: 0 0 18px rgba(0,201,167,0.2);
 }
+.header h1 { font-size: 15px; font-weight: 600; letter-spacing: .3px; }
+.header p  { font-size: 11px; color: var(--teal); margin-top: 2px; letter-spacing: .4px; }
 
-.header h1 {
-  font-size: 15px; font-weight: 600; letter-spacing: .3px;
-}
-
-.header p {
-  font-size: 11px; color: var(--teal);
-  margin-top: 2px; letter-spacing: .4px;
-}
-
-.hdr-btns {
-  margin-left: auto;
-  display: flex; gap: 8px;
-}
-
+.hdr-btns { margin-left: auto; display: flex; gap: 8px; }
 .hdr-btn {
   background: none;
   border: 1px solid var(--border);
@@ -101,10 +88,7 @@ body::before {
 .hdr-btn.on    { border-color: var(--teal-dim); color: var(--teal); }
 
 /* EQ bars */
-.eq {
-  display: flex; align-items: flex-end;
-  gap: 2px; height: 12px; margin-right: 2px;
-}
+.eq { display: flex; align-items: flex-end; gap: 2px; height: 12px; margin-right: 2px; }
 .eq span {
   display: block; width: 2px;
   background: var(--teal); border-radius: 1px;
@@ -114,15 +98,12 @@ body::before {
 .eq span:nth-child(2) { height: 9px;  animation: eq2 .90s  ease-in-out infinite .10s; }
 .eq span:nth-child(3) { height: 6px;  animation: eq1 1.10s ease-in-out infinite .20s; }
 .eq span:nth-child(4) { height: 11px; animation: eq2 .75s  ease-in-out infinite .05s; }
-@keyframes eq1 { 0%,100% { transform: scaleY(.4); } 50% { transform: scaleY(1); } }
+@keyframes eq1 { 0%,100% { transform: scaleY(.4); } 50% { transform: scaleY(1);  } }
 @keyframes eq2 { 0%,100% { transform: scaleY(1);  } 50% { transform: scaleY(.3); } }
 .hdr-btn.on .eq span { opacity: 1; }
 
-/* ── Chat view ── */
-#chatView {
-  display: flex; flex-direction: column;
-  flex: 1; overflow: hidden;
-}
+/* ── Chat ── */
+#chatView { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
 
 #chat-box {
   flex: 1; overflow-y: auto;
@@ -131,7 +112,7 @@ body::before {
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
 }
-#chat-box::-webkit-scrollbar { width: 3px; }
+#chat-box::-webkit-scrollbar       { width: 3px; }
 #chat-box::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
 /* ── Messages ── */
@@ -147,7 +128,6 @@ body::before {
   from { opacity: 0; transform: translateY(7px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-
 .message.ai {
   align-self: flex-start;
   background: var(--ai-bg);
@@ -155,7 +135,6 @@ body::before {
   border-bottom-left-radius: 4px;
   color: #cdd5e0;
 }
-
 .message.user {
   align-self: flex-end;
   background: var(--user-bg);
@@ -164,12 +143,8 @@ body::before {
   color: var(--text);
 }
 
-/* ── Typing indicator ── */
-.typing {
-  padding: 10px 14px;
-  display: flex; align-items: center; gap: 5px;
-  flex-shrink: 0;
-}
+/* ── Typing ── */
+.typing { padding: 10px 14px; display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
 .typing.hidden { display: none; }
 .typing span {
   width: 7px; height: 7px;
@@ -196,10 +171,10 @@ body::before {
   transition: opacity .2s;
   animation: fadeUp .25s ease both;
 }
-.wa-btn:hover { opacity: .87; }
+.wa-btn:hover  { opacity: .87; }
 .wa-btn.clinic { background: #128c7e; }
 
-/* ── Input area ── */
+/* ── Input ── */
 .input-area {
   display: flex; align-items: center; gap: 7px;
   padding: 12px 14px;
@@ -207,7 +182,6 @@ body::before {
   border-top: 1px solid var(--border);
   flex-shrink: 0;
 }
-
 #user-input {
   flex: 1;
   background: var(--surface);
@@ -219,7 +193,7 @@ body::before {
   padding: 10px 13px; outline: none;
   transition: border-color .2s;
 }
-#user-input:focus       { border-color: var(--teal-dim); }
+#user-input:focus        { border-color: var(--teal-dim); }
 #user-input::placeholder { color: var(--muted); }
 
 .ia-btn {
@@ -241,18 +215,13 @@ body::before {
 .ia-btn.sec:hover { border-color: var(--teal-dim); color: var(--teal); }
 
 /* ── Admin ── */
-#adminView {
-  flex: 1; overflow-y: auto;
-  padding: 18px; display: none;
-}
+#adminView { flex: 1; overflow-y: auto; padding: 18px; display: none; }
 #adminView h2 {
   font-size: 15px; font-weight: 600;
   margin-bottom: 14px; padding-bottom: 10px;
   border-bottom: 1px solid var(--border);
 }
-#adminView table {
-  width: 100%; border-collapse: collapse; font-size: 13px;
-}
+#adminView table { width: 100%; border-collapse: collapse; font-size: 13px; }
 #adminView th {
   background: var(--card); color: var(--muted);
   font-weight: 600; font-size: 10px;
@@ -268,15 +237,8 @@ body::before {
 #adminView tr:hover td { background: var(--teal-soft); }
 #adminView small       { color: var(--muted); font-size: 11px; }
 
-.wa-icon {
-  font-size: 19px; cursor: pointer;
-  text-decoration: none; margin-right: 7px;
-}
-.del-btn {
-  background: none; border: none;
-  cursor: pointer; font-size: 15px;
-  opacity: .45; transition: opacity .2s;
-}
+.wa-icon  { font-size: 19px; cursor: pointer; text-decoration: none; margin-right: 7px; }
+.del-btn  { background: none; border: none; cursor: pointer; font-size: 15px; opacity: .45; transition: opacity .2s; }
 .del-btn:hover { opacity: 1; }
 
 #adminView .back-btn {
@@ -290,13 +252,109 @@ body::before {
 }
 #adminView .back-btn:hover { border-color: var(--teal-dim); color: var(--teal); }
 
-.empty {
-  text-align: center; color: var(--muted);
-  padding: 36px 0; font-size: 13px;
-}
+.empty { text-align: center; color: var(--muted); padding: 36px 0; font-size: 13px; }
 
-/* ── Responsive ── */
 @media (max-width: 540px) {
   .app     { max-width: 100%; border: none; }
   .message { max-width: 90%; }
 }
+
+/* ════════════════════════════════════════════════
+   INPUT AREA — updated layout
+   ════════════════════════════════════════════════ */
+
+.input-area {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 14px 18px;
+  background: var(--card);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+/* Text input row */
+.text-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#user-input {
+  flex: 1;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--rsm);
+  color: var(--text);
+  font-family: 'Poppins', sans-serif;
+  font-size: 14px;
+  font-weight: 300;
+  padding: 12px 16px;
+  outline: none;
+  transition: border-color .2s;
+  height: 46px;
+}
+#user-input:focus        { border-color: var(--teal); }
+#user-input::placeholder { color: var(--muted); font-size: 13px; }
+
+.send-btn {
+  background: var(--teal);
+  border: none;
+  border-radius: var(--rsm);
+  color: #0b0f1a;
+  width: 46px; height: 46px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: opacity .2s, transform .1s;
+}
+.send-btn:hover  { opacity: .85; }
+.send-btn:active { transform: scale(.93); }
+
+/* Action buttons row */
+.action-row {
+  display: flex;
+  gap: 10px;
+}
+
+.action-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--rsm);
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  font-family: 'Poppins', sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  cursor: pointer;
+  transition: all .2s;
+}
+.action-btn:hover { border-color: var(--teal-dim); color: var(--teal); }
+.action-btn:active { transform: scale(.97); }
+
+.mic-btn {
+  background: rgba(0,201,167,0.07);
+  border-color: var(--teal-dim);
+  color: var(--teal);
+}
+.mic-btn.listening {
+  background: rgba(0,201,167,0.15);
+  border-color: var(--teal);
+  animation: pulse 1s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(0,201,167,0.3); }
+  50%      { box-shadow: 0 0 0 8px rgba(0,201,167,0); }
+}
+
+.btn-icon  { font-size: 18px; }
+.btn-label { font-size: 12px; letter-spacing: .3px; }
+
+/* Remove old .ia-btn styles that conflict */
+.ia-btn { display: none; }
+.ia-btn.send-btn { display: flex; }
