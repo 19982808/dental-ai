@@ -1,42 +1,49 @@
 // ===============================
-// ELEMENTS
+// ELEMENTS (SAFE LOAD)
 // ===============================
 const chatBody = document.getElementById("chat-body");
 const chatInput = document.getElementById("chat-message");
 const sendBtn = document.getElementById("send-btn");
 
-// ===============================
-// SAFE INIT (prevents button bug)
-// ===============================
-if (sendBtn && chatInput) {
-  sendBtn.addEventListener("click", sendMessage);
-
-  chatInput.addEventListener("keypress", function (e) {
-    if (e.key === "Enter") {
-      sendMessage();
-    }
-  });
+// Prevent crashes if elements missing
+if (!chatBody || !chatInput || !sendBtn) {
+  console.error("Chat elements missing in HTML");
 }
 
 // ===============================
-// ADD MESSAGE TO CHAT
+// EVENT LISTENERS (FIXED)
+// ===============================
+sendBtn.onclick = sendMessage;
+
+chatInput.addEventListener("keydown", function (e) {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    sendMessage();
+  }
+});
+
+// ===============================
+// ADD MESSAGE (WITH IMAGE SUPPORT)
 // ===============================
 function addMessage(text, sender = "bot") {
   const msg = document.createElement("div");
   msg.className = sender === "user" ? "user-message" : "bot-message";
 
-  // IMAGE SUPPORT (stable)
+  // Image parsing
   if (text.includes("[IMAGE:")) {
-    const parts = text.split("[IMAGE:");
-    msg.innerText = parts[0];
+    const splitText = text.split("[IMAGE:");
+    const mainText = splitText[0];
+    const imageQuery = splitText[1].replace("]", "").trim();
 
-    const query = parts[1].replace("]", "").trim();
+    const textNode = document.createElement("div");
+    textNode.innerText = mainText;
+    msg.appendChild(textNode);
 
     const img = document.createElement("img");
-    img.src = `https://source.unsplash.com/400x300/?${encodeURIComponent(query)}`;
+    img.src = `https://source.unsplash.com/400x300/?${encodeURIComponent(imageQuery)}`;
     img.style.width = "100%";
-    img.style.borderRadius = "12px";
     img.style.marginTop = "10px";
+    img.style.borderRadius = "10px";
 
     msg.appendChild(img);
   } else {
@@ -48,82 +55,68 @@ function addMessage(text, sender = "bot") {
 }
 
 // ===============================
-// PERSONALITY ENGINE
+// PERSONALITY (NATURAL, NOT FORCED)
 // ===============================
-const personalityAddons = [
-  "Don’t worry, I’ve got you 😌",
-  "We’ll figure this out together",
-  "You’re safe with me",
-  "I promise I won’t make it complicated 😄",
-  "You came to the right place 😉"
-];
-
-function addPersonality(text) {
-  const extra =
-    personalityAddons[Math.floor(Math.random() * personalityAddons.length)];
-  return text + "\n\n" + extra;
+function tone(text) {
+  const extras = [
+    "We’ll figure it out.",
+    "You’re okay, I’ve got you.",
+    "Let’s sort it out together.",
+    "Nothing to stress about yet."
+  ];
+  return text + "\n\n" + extras[Math.floor(Math.random() * extras.length)];
 }
 
 // ===============================
-// CONTEXT MEMORY (makes flow natural)
+// MEMORY (FOR FLOW)
 // ===============================
-let lastTopic = null;
+let context = {
+  lastTopic: null
+};
 
 // ===============================
-// SYMPTOM ANALYSIS ENGINE
+// DENTAL KNOWLEDGE ENGINE
 // ===============================
-function analyzeSymptoms(input) {
+function dentalBrain(input) {
   input = input.toLowerCase();
 
   // Sensitivity
-  if (input.includes("cold") || input.includes("hot") || input.includes("sensitive")) {
-    lastTopic = "sensitivity";
-    return addPersonality(
-      "That sounds like tooth sensitivity 😬\n\nIs it a quick sharp pain or does it linger for a while?"
+  if (input.includes("cold") || input.includes("hot")) {
+    context.lastTopic = "sensitivity";
+    return tone(
+      "That sounds like sensitivity.\n\nIs it a quick sharp pain or does it linger?"
     );
   }
 
-  // Biting pain
-  if (input.includes("bite") || input.includes("chewing")) {
-    lastTopic = "bite";
-    return addPersonality(
-      "Pain when biting? That could be a small crack or cavity 👀\n\nDoes it only hurt when you chew?"
+  // Bite pain
+  if (input.includes("bite") || input.includes("chew")) {
+    context.lastTopic = "bite";
+    return tone(
+      "Pain when biting usually means a crack or cavity.\n\nDoes it only hurt when chewing?"
     );
   }
 
-  // Root canal indicators
-  if (
-    input.includes("throbbing") ||
-    input.includes("constant") ||
-    input.includes("linger")
-  ) {
-    lastTopic = "root_canal";
-    return addPersonality(
-      "Hmm… that kind of pain usually means the nerve is involved 😟\n\nYou might need a root canal to fully stop it.\n\n[IMAGE: root canal dental procedure]"
+  // Deep pain
+  if (input.includes("throbbing") || input.includes("constant")) {
+    context.lastTopic = "root";
+    return tone(
+      "That kind of pain can mean the nerve is affected.\n\nA root canal might be needed to remove the infection.\n\n[IMAGE: root canal procedure diagram]"
     );
   }
 
   // Cavity
-  if (
-    input.includes("hole") ||
-    input.includes("cavity") ||
-    input.includes("black")
-  ) {
-    lastTopic = "filling";
-    return addPersonality(
-      "That sounds like a cavity 🦷\n\nA simple filling would fix it before it gets worse.\n\n[IMAGE: dental filling procedure]"
+  if (input.includes("hole") || input.includes("cavity")) {
+    context.lastTopic = "filling";
+    return tone(
+      "That’s likely a cavity.\n\nA filling will clean it out and seal the tooth before it gets worse.\n\n[IMAGE: dental filling diagram]"
     );
   }
 
-  // Gum disease
-  if (
-    input.includes("gum") ||
-    input.includes("bleeding") ||
-    input.includes("swelling")
-  ) {
-    lastTopic = "gums";
-    return addPersonality(
-      "Your gums might be inflamed 😬\n\nThat could be early gum disease.\n\nDo they bleed when brushing?"
+  // Gum issues
+  if (input.includes("gum") || input.includes("bleeding")) {
+    context.lastTopic = "gums";
+    return tone(
+      "That could be gum inflammation.\n\nDo your gums bleed when brushing?"
     );
   }
 
@@ -131,79 +124,67 @@ function analyzeSymptoms(input) {
 }
 
 // ===============================
-// MAIN RESPONSE ENGINE
+// MAIN RESPONSE SYSTEM
 // ===============================
-function getAIResponse(input) {
+function respond(input) {
   const lower = input.toLowerCase();
 
-  // Greetings (natural)
-  if (
-    lower === "hi" ||
-    lower === "hello" ||
-    lower === "hey"
-  ) {
-    return addPersonality(
-      "Hey 😊\n\nTell me… are we just talking or is your smile trying to tell me something?"
+  // Greeting
+  if (["hi", "hello", "hey"].includes(lower)) {
+    return tone(
+      "Hey.\n\nWhat’s going on — just checking in or something bothering you?"
     );
   }
 
-  // General pain entry
-  if (lower.includes("tooth") || lower.includes("pain") || lower.includes("ache")) {
-    return addPersonality(
-      "Ouch… tooth pain isn’t something to ignore 😅\n\nTell me exactly what you feel — sharp, dull, cold, when eating?"
+  // Pain start
+  if (lower.includes("tooth") || lower.includes("pain")) {
+    return tone(
+      "Tooth pain isn’t random.\n\nTell me what it feels like — sharp, dull, when eating, cold?"
     );
   }
 
-  // PROCEDURES -------------------
-
+  // Procedures
   if (lower.includes("filling")) {
-    lastTopic = "filling";
-    return addPersonality(
-      "A filling is used to repair a cavity 🪥\n\nThe dentist removes decay and seals your tooth.\n\nQuick, simple, and you’ll feel normal again fast.\n\n[IMAGE: dental filling diagram]"
+    context.lastTopic = "filling";
+    return tone(
+      "A filling removes decay and seals your tooth.\n\nIt’s quick and stops the damage from spreading.\n\n[IMAGE: dental filling]"
     );
   }
 
   if (lower.includes("root canal")) {
-    lastTopic = "root_canal";
-    return addPersonality(
-      "A root canal removes infection inside your tooth and saves it 😌\n\nIt actually RELIEVES pain — not causes it.\n\n[IMAGE: root canal diagram]"
+    context.lastTopic = "root";
+    return tone(
+      "A root canal removes infection inside your tooth.\n\nIt actually stops pain and saves the tooth.\n\n[IMAGE: root canal]"
     );
   }
 
   if (lower.includes("crown")) {
-    lastTopic = "crown";
-    return addPersonality(
-      "A crown protects a weak or damaged tooth 👑\n\nThink of it like a shield that restores strength and shape.\n\n[IMAGE: dental crown tooth]"
+    context.lastTopic = "crown";
+    return tone(
+      "A crown covers and protects a damaged tooth.\n\nThink of it like armor for your tooth.\n\n[IMAGE: dental crown]"
     );
   }
 
   if (lower.includes("braces") || lower.includes("invisalign")) {
-    lastTopic = "braces";
-    return addPersonality(
-      "Looking to straighten things out? 😏\n\nBraces are fixed, Invisalign is removable and subtle.\n\nBoth give you that confident smile.\n\n[IMAGE: braces invisalign comparison]"
+    return tone(
+      "Braces and Invisalign both straighten teeth.\n\nBraces stay on, Invisalign is removable.\n\n[IMAGE: braces invisalign]"
     );
   }
 
-  // CONTEXT FOLLOW-UP (smart flow)
-  if (lastTopic === "sensitivity" && (lower.includes("yes") || lower.includes("linger"))) {
-    return addPersonality(
-      "If it lingers, that’s deeper than simple sensitivity 😟\n\nWe might be looking at nerve involvement → possibly a root canal."
+  // Context follow-up
+  if (context.lastTopic === "sensitivity" && lower.includes("linger")) {
+    return tone(
+      "If it lingers, that’s deeper than normal sensitivity.\n\nYou might need a root canal."
     );
   }
 
-  if (lastTopic === "filling" && lower.includes("pain")) {
-    return addPersonality(
-      "If the cavity is already painful, it may be getting deeper 👀\n\nBest to treat it early before it turns into a root canal."
-    );
-  }
+  // Symptom detection
+  const smart = dentalBrain(input);
+  if (smart) return smart;
 
-  // 🧠 Symptom detection
-  const diagnosis = analyzeSymptoms(input);
-  if (diagnosis) return diagnosis;
-
-  // FALLBACK (never dry)
-  return addPersonality(
-    "Hmm… I want to get this right 😄\n\nTell me exactly what you're feeling — where, when, and how it hurts."
+  // Fallback
+  return tone(
+    "Explain it a bit more so I don’t guess wrong.\n\nWhere exactly does it hurt?"
   );
 }
 
@@ -211,26 +192,26 @@ function getAIResponse(input) {
 // SEND MESSAGE
 // ===============================
 function sendMessage() {
-  const userText = chatInput.value.trim();
-  if (!userText) return;
+  const text = chatInput.value.trim();
+  if (!text) return;
 
-  addMessage(userText, "user");
+  addMessage(text, "user");
   chatInput.value = "";
 
   setTimeout(() => {
-    const reply = getAIResponse(userText);
+    const reply = respond(text);
     addMessage(reply, "bot");
-  }, 500);
+  }, 400);
 }
 
 // ===============================
-// AUTO GREETING
+// START MESSAGE
 // ===============================
 window.onload = () => {
   setTimeout(() => {
     addMessage(
-      "Hey… 😊\n\nTalk to me — is something bothering your smile or are we just vibing today?",
+      "Hey.\n\nTalk to me — what’s going on?",
       "bot"
     );
-  }, 700);
+  }, 600);
 };
