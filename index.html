@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
+
 <div class="app">
 
   <!-- HEADER -->
@@ -17,73 +18,25 @@
       <h1>Rynar Dental AI</h1>
       <p>Premium Smile Experience</p>
     </div>
-    <div class="hdr-btns">
-      <button class="hdr-btn" id="jazzBtn" onclick="toggleJazz()" title="Background jazz">
-        <div class="eq"><span></span><span></span><span></span><span></span></div>
-      </button>
-      <button class="hdr-btn on" id="voiceBtn" onclick="toggleVoice()" title="Toggle voice">🔊</button>
-      <button class="hdr-btn" onclick="toggleAdmin()" title="Admin dashboard">⚙️</button>
-    </div>
   </div>
 
-  <!-- CHAT VIEW -->
+  <!-- CHAT -->
   <div id="chatView">
     <div id="chat-box"></div>
 
-    <div id="typing-indicator" class="typing hidden">
-      <span></span><span></span><span></span>
-    </div>
-
-    <!-- INPUT AREA -->
     <div class="input-area">
-
-      <!-- Text input row -->
-      <div class="text-row">
-        <input
-          type="text"
-          id="user-input"
-          placeholder="Type your message here…"
-          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}"
-          autocomplete="off"
-        />
-        <button class="ia-btn send-btn" onclick="sendMessage()" title="Send">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-               stroke-linecap="round" stroke-linejoin="round" width="17" height="17">
-            <line x1="22" y1="2" x2="11" y2="13"/>
-            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-          </svg>
-        </button>
-      </div>
-
-      <!-- Action buttons row -->
-      <div class="action-row">
-        <button class="action-btn mic-btn" id="micBtn" onclick="startListening()" title="Speak to Rynar">
-          <span class="btn-icon">🎤</span>
-          <span class="btn-label">Tap to speak</span>
-        </button>
-        <button class="action-btn img-btn" onclick="document.getElementById('imgInput').click()" title="Upload smile photo">
-          <span class="btn-icon">📷</span>
-          <span class="btn-label">Upload smile</span>
-        </button>
-      </div>
-
+      <input
+        type="text"
+        id="user-input"
+        placeholder="Type your message..."
+        autocomplete="off"
+      />
+      <button id="send-btn">Send</button>
     </div>
-  </div>
-
-  <!-- ADMIN VIEW -->
-  <div id="adminView">
-    <h2>Bookings Dashboard</h2>
-    <table>
-      <thead><tr><th>#</th><th>Patient</th><th>Appointment</th><th>Actions</th></tr></thead>
-      <tbody id="bookingBody"></tbody>
-    </table>
-    <p id="emptyMsg" class="empty">No bookings yet.</p>
-    <button class="back-btn" onclick="toggleAdmin()">⬅ Back to Chat</button>
   </div>
 
 </div>
 
-<input type="file" id="imgInput" accept="image/*" style="display:none" onchange="handleImageUpload(event)"/>
 <script src="script.js"></script>
 </body>
 </html>
