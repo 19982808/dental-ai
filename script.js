@@ -413,4 +413,23 @@ function appendMessage(sender, text) {
   const box = document.getElementById("chat-box");
   const div = document.createElement("div");
   div.className = "message " + sender;
-  div.innerHTML = text.replace(/\*([^*]+)\*/
+  div.innerHTML = text.replace(/\*([^*]+)\*/g, "<b>$1</b>").replace(/_([^_]+)_/g, "<i>$1</i>");
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+function showTyping(show) {
+  const tp = document.getElementById("typing");
+  if (tp) tp.style.display = show ? "block" : "none";
+}
+
+// ── Init ─────────────────────────────────────────
+document.getElementById("sendBtn")?.addEventListener("click", sendMessage);
+document.getElementById("user-input")?.addEventListener("keypress", e => { if (e.key === "Enter") sendMessage(); });
+document.getElementById("voiceBtn")?.addEventListener("click", toggleVoice);
+document.getElementById("jazzBtn")?.addEventListener("click", toggleJazz);
+document.getElementById("micBtn")?.addEventListener("click", startListening);
+
+// Show greeting on load
+appendMessage("ai", SYSTEM.greetings[Math.floor(Math.random() * SYSTEM.greetings.length)]);
+speak(chatHistory[chatHistory.length-1]?.content || "");
