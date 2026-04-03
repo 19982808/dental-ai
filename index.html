@@ -4,11 +4,10 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Rynar Dental AI</title>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
-
 <div class="app">
 
   <!-- HEADER -->
@@ -18,25 +17,139 @@
       <h1>Rynar Dental AI</h1>
       <p>Premium Smile Experience</p>
     </div>
+    <div class="hdr-btns">
+      <button class="hdr-btn" id="jazzBtn" onclick="toggleJazz()" title="Background jazz">
+        <div class="eq"><span></span><span></span><span></span><span></span></div>
+      </button>
+      <button class="hdr-btn on" id="voiceBtn" onclick="toggleVoice()" title="Toggle voice">🔊</button>
+      <button class="hdr-btn" onclick="showView('payment')" title="Payment">💳</button>
+      <button class="hdr-btn" onclick="showView('gallery')" title="Image Gallery">🖼️</button>
+      <button class="hdr-btn" onclick="showView('admin')" title="Admin">⚙️</button>
+    </div>
   </div>
 
-  <!-- CHAT -->
-  <div id="chatView">
-    <div id="chat-box"></div>
+  <!-- NAV TABS -->
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showView('chat')">💬 Chat</button>
+    <button class="nav-tab" onclick="showView('symptom')">🩺 Symptoms</button>
+    <button class="nav-tab" onclick="showView('guides')">📚 Guides</button>
+    <button class="nav-tab" onclick="showView('payment')">💳 Pay</button>
+  </div>
 
+  <!-- ═══ CHAT VIEW ═══ -->
+  <div id="view-chat" class="view active">
+    <div id="chat-box"></div>
+    <div id="typing-indicator" class="typing hidden">
+      <span></span><span></span><span></span>
+    </div>
     <div class="input-area">
-      <input
-        type="text"
-        id="user-input"
-        placeholder="Type your message..."
-        autocomplete="off"
-      />
-      <button id="send-btn">Send</button>
+      <div class="text-row">
+        <input type="text" id="user-input"
+               placeholder="Type your message here…"
+               onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}"
+               autocomplete="off"/>
+        <button class="send-btn" onclick="sendMessage()" title="Send">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+               stroke-linecap="round" stroke-linejoin="round" width="17" height="17">
+            <line x1="22" y1="2" x2="11" y2="13"/>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+        </button>
+      </div>
+      <div class="action-row">
+        <button class="action-btn mic-btn" id="micBtn" onclick="startListening()">
+          <span class="btn-icon">🎤</span>
+          <span class="btn-label">Tap to speak</span>
+        </button>
+        <button class="action-btn img-btn" onclick="document.getElementById('imgInput').click()">
+          <span class="btn-icon">📷</span>
+          <span class="btn-label">Upload smile</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SYMPTOM CHECKER VIEW ═══ -->
+  <div id="view-symptom" class="view">
+    <div class="view-scroll">
+      <div class="section-title">🩺 What are you experiencing?</div>
+      <p class="section-sub">Select all that apply — I'll help figure out what's going on.</p>
+      <div class="symptom-grid" id="symptomGrid"></div>
+      <div class="symptom-other">
+        <input type="text" id="symptomOther" placeholder="Or describe in your own words…"/>
+      </div>
+      <button class="teal-btn" onclick="diagnose()">Analyse My Symptoms →</button>
+      <div id="diagnosisResult" class="diagnosis-box hidden"></div>
+    </div>
+  </div>
+
+  <!-- ═══ GUIDES VIEW ═══ -->
+  <div id="view-guides" class="view">
+    <div class="view-scroll">
+      <div class="section-title">📚 Treatment Guides</div>
+      <p class="section-sub">Tap any treatment to learn what it involves.</p>
+      <div class="guides-grid" id="guidesGrid"></div>
+    </div>
+  </div>
+
+  <!-- ═══ GUIDE DETAIL VIEW ═══ -->
+  <div id="view-guide-detail" class="view">
+    <div class="view-scroll">
+      <button class="back-link" onclick="showView('guides')">← Back to Guides</button>
+      <div id="guideDetail"></div>
+      <button class="teal-btn" onclick="bookFromGuide()">Book an Appointment →</button>
+    </div>
+  </div>
+
+  <!-- ═══ PAYMENT VIEW ═══ -->
+  <div id="view-payment" class="view">
+    <div class="view-scroll">
+      <div class="section-title">💳 Consultation Options</div>
+      <p class="section-sub">Choose how you'd like to connect with our dental team.</p>
+      <div class="payment-cards" id="paymentCards"></div>
+      <div class="payment-form hidden" id="paymentForm">
+        <div class="section-title" id="payFormTitle">Complete Booking</div>
+        <input type="text" class="form-input" id="payName" placeholder="Your full name"/>
+        <input type="text" class="form-input" id="payPhone" placeholder="WhatsApp number (+254…)"/>
+        <input type="email" class="form-input" id="payEmail" placeholder="Email address"/>
+        <div class="selected-plan" id="selectedPlanDisplay"></div>
+        <button class="teal-btn" onclick="processPayment()">Confirm & Pay via WhatsApp →</button>
+        <p class="pay-note">Payment link will be sent to your WhatsApp. We accept M-Pesa, card, and bank transfer.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ GALLERY VIEW ═══ -->
+  <div id="view-gallery" class="view">
+    <div class="view-scroll">
+      <div class="section-title">🖼️ My Smile Gallery</div>
+      <p class="section-sub">Photos you've shared for analysis are stored here.</p>
+      <button class="action-btn img-btn gallery-upload" onclick="document.getElementById('galleryInput').click()">
+        <span class="btn-icon">📷</span>
+        <span class="btn-label">Add new photo</span>
+      </button>
+      <div class="gallery-grid" id="galleryGrid">
+        <div class="gallery-empty">No photos yet — upload a smile photo to get started.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ ADMIN VIEW ═══ -->
+  <div id="view-admin" class="view">
+    <div class="view-scroll">
+      <div class="section-title">⚙️ Bookings Dashboard</div>
+      <table class="admin-table">
+        <thead><tr><th>#</th><th>Patient</th><th>Appointment</th><th>Actions</th></tr></thead>
+        <tbody id="bookingBody"></tbody>
+      </table>
+      <p id="emptyMsg" class="empty">No bookings yet.</p>
     </div>
   </div>
 
 </div>
 
+<input type="file" id="imgInput"     accept="image/*" style="display:none" onchange="handleImageUpload(event)"/>
+<input type="file" id="galleryInput" accept="image/*" style="display:none" onchange="handleGalleryUpload(event)"/>
 <script src="script.js"></script>
 </body>
 </html>
