@@ -282,9 +282,10 @@ async function askAI(userMsg, imageBase64=null) {
     const res = await fetch("/api/chat", {
       method:"POST", headers:{"Content-Type":"application/json"},
       body: JSON.stringify({
-        model:"llama3-8b-8192",
-        messages:[{role:"system",content:SYSTEM},...chatHistory],
-        temperature:0.78, max_tokens:280, frequency_penalty:0.5, presence_penalty:0.3
+        model:       "llama3-8b-8192",
+        messages:    [{role:"system",content:SYSTEM},...chatHistory],
+        temperature: 0.75,
+        max_tokens:  300
       })
     });
     const data = await res.json();
@@ -417,62 +418,106 @@ async function diagnose() {
   const symptoms = [...selected, other].filter(Boolean).join(", ");
   const box = document.getElementById("diagnosisResult");
   box.classList.remove("hidden");
-  box.innerHTML = `<h3>🔍 Analysing your symptoms…</h3><p style="color:var(--muted);font-size:13px">Please wait…</p>`;
+  box.innerHTML = `<h3>🔍 Analysing your symptoms…</h3><p style="color:var(--muted);font-size:13px;margin-top:6px">Please wait a moment…</p>`;
 
-  const prompt = `Patient symptoms: ${symptoms}. 
-Please respond in this exact JSON format:
+  const prompt = `A dental patient reports these symptoms: ${symptoms}.
+
+Respond ONLY with valid JSON in this exact structure — no text before or after:
 {
-  "summary": "brief 1-sentence overview",
+  "summary": "one sentence summary of what may be going on",
   "conditions": [
     {
-      "name": "condition name",
-      "emoji": "single relevant emoji",
-      "description": "2-sentence explanation",
-      "urgency": "urgent|moderate|routine",
-      "action": "recommended action"
+      "name": "most likely condition name",
+      "emoji": "one relevant emoji",
+      "description": "brief 2-sentence explanation in plain language",
+      "urgency": "urgent",
+      "action": "what the patient should do"
     }
   ],
-  "pain_relief": "immediate pain management tip if relevant",
-  "book_message": "warm 1-sentence encouragement to book"
+  "pain_relief": "one practical pain tip if relevant, else empty string",
+  "book_message": "one warm encouraging sentence to book an appointment"
 }
-Provide 1-3 most likely conditions. Be warm and reassuring, not alarming.`;
-
-  const raw = await askAI(prompt);
+Rules: urgency must be urgent, moderate, or routine. Give 1-2 conditions max. Be reassuring not alarming.`;
 
   try {
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    const data = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
-
-    let html = `<h3>🩺 ${data.summary}</h3>`;
-    (data.conditions || []).forEach(c => {
-      html += `<div class="dx-item">
-        <div class="dx-icon">${c.emoji}</div>
-        <div class="dx-info">
-          <h4>${c.name}</h4>
-          <p>${c.description}</p>
-          <p><strong style="color:var(--teal)">Recommended: </strong>${c.action}</p>
-          <span class="dx-urgency ${c.urgency}">${c.urgency === "urgent" ? "⚠️ Urgent" : c.urgency === "moderate" ? "📅 See dentist soon" : "✅ Routine"}</span>
-        </div>
-      </div>`;
+    // Direct fetch — don't use askAI() to avoid polluting chat history
+    const res = await fetch("/api/chat", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model:       "llama3-8b-8192",
+        messages: [
+          { role: "system", content: "You are a dental diagnosis assistant. Always respond with valid JSON only. No markdown, no explanation outside the JSON." },
+          { role: "user",   content: prompt }
+        ],
+        temperature: 0.3,
+        max_tokens:  600
+      })
     });
 
-    if (data.pain_relief) {
-      html += `<div class="pain-tip">💊 <strong>Pain relief:</strong> ${data.pain_relief}</div>`;
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err?.error?.message || `HTTP ${res.status}`);
     }
 
-    html += `<p style="font-size:13px;color:var(--muted);margin-bottom:12px">${data.book_message || "Booking an appointment is the best next step."}</p>`;
+    const data = await res.json();
+    const raw  = data.choices[0].message.content.trim();
+
+    // Extract JSON robustly
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("No JSON found in response");
+    const result = JSON.parse(jsonMatch[0]);
+
+    let html = `<h3>🩺 ${result.summary || "Here is what I found"}</h3>`;
+
+    (result.conditions || []).forEach(c => {
+      const urgencyLabel = c.urgency === "urgent"   ? "⚠️ See dentist urgently"  :
+                           c.urgency === "moderate" ? "📅 See dentist soon"       : "✅ Routine visit";
+      html += `
+        <div class="dx-item">
+          <div class="dx-icon">${c.emoji || "🦷"}</div>
+          <div class="dx-info">
+            <h4>${c.name}</h4>
+            <p>${c.description}</p>
+            <p><strong style="color:var(--teal)">Recommended: </strong>${c.action}</p>
+            <span class="dx-urgency ${c.urgency || "routine"}">${urgencyLabel}</span>
+          </div>
+        </div>`;
+    });
+
+    if (result.pain_relief) {
+      html += `<div class="pain-tip">💊 <strong>Pain relief:</strong> ${result.pain_relief}</div>`;
+    }
+
+    html += `<p style="font-size:13px;color:var(--muted);margin:10px 0">${result.book_message || "Booking an appointment is the best next step."}</p>`;
     html += `<div class="dx-actions">
-      <button class="dx-btn primary" onclick="showView('chat');awaitingField='name';appendMessage('ai','${PROMPTS.name}');speak('${PROMPTS.name}')">📅 Book Appointment</button>
+      <button class="dx-btn primary" onclick="triggerBooking()">📅 Book Appointment</button>
       <button class="dx-btn secondary" onclick="showView('chat')">💬 Ask Rynar</button>
     </div>`;
 
     box.innerHTML = html;
+
   } catch(e) {
-    box.innerHTML = `<h3>🩺 Assessment</h3><p style="font-size:14px;line-height:1.6;color:var(--text)">${raw}</p>
-      <div class="dx-actions">
-        <button class="dx-btn primary" onclick="showView('chat');awaitingField='name';appendMessage('ai','${PROMPTS.name}');speak('${PROMPTS.name}')">📅 Book Appointment</button>
+    console.error("Diagnose error:", e);
+    box.innerHTML = `
+      <h3>🩺 Assessment</h3>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">
+        Based on your symptoms (${symptoms}), I recommend booking a consultation so our dentist can properly assess you.
+      </p>
+      <div class="pain-tip">💊 In the meantime — ibuprofen 400mg with food helps with most dental pain. Clove oil on the gum can also relieve toothache temporarily.</div>
+      <div class="dx-actions" style="margin-top:12px">
+        <button class="dx-btn primary" onclick="triggerBooking()">📅 Book Appointment</button>
+        <button class="dx-btn secondary" onclick="showView('chat')">💬 Chat with Rynar</button>
       </div>`;
   }
+}
+
+function triggerBooking() {
+  showView("chat");
+  awaitingField = "name";
+  const msg = "Let me get you booked in. " + PROMPTS.name;
+  appendMessage("ai", msg);
+  speak(msg);
 }
 
 // ════════════════════════════════════════════════
