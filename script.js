@@ -782,3 +782,47 @@ window.addEventListener("load", () => {
     setTimeout(() => speak(greet), 400);
   }, 700);
 });
+// ── Customer Service Manual ────────────────────────────────
+const customerServiceManual = {
+  greetings: [
+    "Hello! I'm Rynar, your personal dental AI. How can I assist you today?",
+    "Hi there! I'm Rynar, here to help with all your dental needs. What's on your mind?",
+    "Greetings! I'm Rynar, your friendly dental AI. How can I make your smile brighter?"
+  ],
+  troubleshooting: [
+    "Hmm, let me take a look at that. Give me a moment to troubleshoot the issue.",
+    "Okay, let me see what I can do to resolve this. Please bear with me while I investigate.",
+    "No problem, I'll do my best to get this sorted out. Let me check on that for you."
+  ],
+  bookingRequest: [
+    "Certainly! Let me get you booked in. What's your full name?",
+    "Great, let's get you scheduled. Could you please provide your full name?",
+    "Wonderful, I'd be happy to book an appointment for you. What's your full name?"
+  ],
+  farewell: [
+    "It was a pleasure chatting with you! Have a wonderful day.",
+    "Alright, take care! I'm always here if you need any other dental assistance.",
+    "Awesome, I'm glad I could help. Feel free to reach out anytime. Bye for now!"
+  ]
+};
+
+function handleUserInput(userMessage) {
+  if (userMessage.toLowerCase().includes("hi") || userMessage.toLowerCase().includes("hello")) {
+    const greetingIndex = Math.floor(Math.random() * customerServiceManual.greetings.length);
+    appendMessage("ai", customerServiceManual.greetings[greetingIndex]);
+  } else if (userMessage.toLowerCase().includes("something went wrong")) {
+    const troubleshootingIndex = Math.floor(Math.random() * customerServiceManual.troubleshooting.length);
+    appendMessage("ai", customerServiceManual.troubleshooting[troubleshootingIndex]);
+  } else if (userMessage.toLowerCase().includes("book")) {
+    const bookingIndex = Math.floor(Math.random() * customerServiceManual.bookingRequest.length);
+    appendMessage("ai", customerServiceManual.bookingRequest[bookingIndex]);
+  } else {
+    // Your existing logic to handle other user messages
+  }
+}
+
+// ── Boot Function ───────────────────────────────
+window.addEventListener("load", () => {
+  const greet = "Hello! I'm Rynar, your personal dental AI 🦷 I can help with symptoms, treatments, bookings, and more. What's going on with your smile today?";
+  appendMessage("ai", greet);
+});
