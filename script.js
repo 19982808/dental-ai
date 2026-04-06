@@ -287,10 +287,9 @@ async function askAI(userMsg, imageBase64=null) {
     });
     const data = await res.json();
     if (!res.ok) {
-      showTyping(false);
-      if (res.status===401) return "⚠️ API key issue — check GROQ_API_KEY in Vercel environment variables.";
-      if (res.status===429) return "Getting a lot of requests right now — try again in a moment.";
-      return "Something went wrong — try again?";
+  const errorText = await res.text();
+  return `Error ${res.status}: ${errorText}`;
+}
     }
     const reply = data.choices[0].message.content.trim();
     chatHistory.push({role:"assistant",content:reply});
