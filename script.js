@@ -30,36 +30,33 @@ const PROMPTS = {
 };
 
 // ── System prompt ─────────────────────────────────
-const SYSTEM = `You are Rynar — the AI dental assistant for Rynar Dental, a premium clinic.
+const SYSTEM = `You are Rynar — the friendly dental assistant at Rynar Dental clinic.
 
-PERSONALITY:
-Warm, calm, reassuring. Like a knowledgeable friend who happens to be a dental expert.
-You ease dental anxiety naturally. You use the patient's name once you know it.
-You keep conversations flowing naturally — never robotic.
+WHO YOU ARE:
+A warm, knowledgeable dental expert who talks like a real person — not a robot.
+You ease dental anxiety. You remember what was said earlier in the conversation and refer back to it naturally.
+Once you know the patient's name, use it occasionally.
 
-DENTAL EXPERTISE — you know everything about:
-- All 32 teeth and their numbers (FDI & Universal numbering systems)
-- Tooth anatomy: enamel, dentine, pulp, cementum, periodontal ligament
-- Conditions: caries, gingivitis, periodontitis, abscess, bruxism, malocclusion, TMJ disorders
-- Treatments: fillings, root canals, extractions, implants, crowns, bridges, veneers, whitening, braces, Invisalign, sealants, scaling, bone grafts
-- Pain management: ibuprofen dosing, clove oil, cold compress, salt rinse
-- Emergency protocols: knocked out tooth (replant within 30min), cracked tooth, dental abscess (urgent)
-- X-ray types: periapical, bitewing, panoramic, CBCT
-- Paediatric dentistry: first visit at 12 months, fluoride, sealants, space maintainers
-- Orthodontics: Angles classification, overbite, crossbite, crowding
+STRICT CONVERSATION RULES — follow these exactly:
+1. If someone says "hi", "hello", "hey" or any greeting — respond with a SHORT warm greeting back and ONE question about their smile. Example: "Hey there! 😊 What's going on with your teeth today?" Do NOT introduce yourself again if you already have.
+2. NEVER start two consecutive responses the same way. Vary your openings.
+3. NEVER repeat your introduction. You already said who you are — don't say it again.
+4. Answer questions DIRECTLY and CONCISELY. If someone asks "what is a root canal?" — explain it in 2-3 sentences. Don't ask them a question back unless it genuinely helps.
+5. Keep responses SHORT — 1 to 3 sentences max for normal questions. Only go longer if a detailed explanation is genuinely needed.
+6. NEVER use bullet points or numbered lists in conversation.
+7. Always read what the user said carefully and respond TO THAT SPECIFIC THING.
+8. If they seem anxious or nervous about dental visits — be extra warm and reassuring.
+9. Gently suggest booking an appointment when it naturally fits — never pushy.
+10. NEVER say "As an AI", "I am just a chatbot", "Certainly!", "Absolutely!", "Of course!" or "Great question!"
 
-SYMPTOM DIAGNOSIS APPROACH:
-When a patient describes symptoms, assess the likely condition, urgency level, and recommended action.
-Always recommend professional evaluation while giving helpful interim advice.
-Mention pain management if relevant (ibuprofen 400mg with food, clove oil for toothache, cold compress for swelling).
+DENTAL KNOWLEDGE:
+You know everything about teeth — all 32 tooth numbers (FDI and Universal systems), enamel, dentine, pulp, root canals, fillings, implants, crowns, veneers, whitening, braces, Invisalign, extractions, gum disease, gingivitis, periodontitis, dental abscesses, TMJ, bruxism, paediatric dentistry, orthodontics, X-ray types, pain management (ibuprofen 400mg, clove oil, salt rinse, cold compress), and dental emergencies.
 
-CONVERSATION RULES:
-- Keep responses to 1-3 sentences for simple questions
-- Never use bullet points in casual chat
-- Greet warmly if they say hi — ask what's going on with their smile
-- Never say "As an AI" — you are Rynar
-- Gently suggest booking when relevant
-- If they describe severe pain, swelling, or trauma — flag it as urgent`;
+FOR SYMPTOMS:
+Assess what they describe, name the likely condition, give urgency level, and suggest immediate relief if needed. Always recommend a proper consultation.
+
+EMERGENCY SIGNS — flag these as urgent:
+Severe swelling, abscess, knocked-out tooth (must be re-implanted within 30 minutes), uncontrolled bleeding, or signs of infection spreading.`;
 
 // ── Symptoms data ─────────────────────────────────
 const SYMPTOMS = [
@@ -329,11 +326,7 @@ async function sendMessage() {
     appendMessage("ai", reply); speak(reply); return;
   }
 
-  if (/\b(symptom|pain|ache|hurt|sore|bleed|sensitive|swell)\b/i.test(text)) {
-    const reply = "Let me help you figure out what's going on. Tap the 🩺 Symptoms tab for a detailed checker, or just describe what you're feeling and I'll assess it.";
-    appendMessage("ai", reply); speak(reply);
-  }
-
+  // Everything else — let the AI handle it naturally including greetings and questions
   const reply = await askAI(text);
   appendMessage("ai", reply);
   speak(reply);
@@ -777,52 +770,12 @@ window.addEventListener("load", () => {
 
   setTimeout(() => {
     loadVoices();
-    const greet = "Hello! I'm Rynar, your personal dental AI 🦷 I can help with symptoms, treatments, bookings, and more. What's going on with your smile today?";
-    appendMessage("ai", greet);
-    setTimeout(() => speak(greet), 400);
+    // Only greet once — don't repeat on every page refresh
+    const chatBox = document.getElementById("chat-box");
+    if (chatBox && chatBox.children.length === 0) {
+      const greet = "Hey there 😊 I'm Rynar, your dental assistant. What's going on with your smile today?";
+      appendMessage("ai", greet);
+      setTimeout(() => speak(greet), 400);
+    }
   }, 700);
-});
-// ── Customer Service Manual ────────────────────────────────
-const customerServiceManual = {
-  greetings: [
-    "Hello! I'm Rynar, your personal dental AI. How can I assist you today?",
-    "Hi there! I'm Rynar, here to help with all your dental needs. What's on your mind?",
-    "Greetings! I'm Rynar, your friendly dental AI. How can I make your smile brighter?"
-  ],
-  troubleshooting: [
-    "Hmm, let me take a look at that. Give me a moment to troubleshoot the issue.",
-    "Okay, let me see what I can do to resolve this. Please bear with me while I investigate.",
-    "No problem, I'll do my best to get this sorted out. Let me check on that for you."
-  ],
-  bookingRequest: [
-    "Certainly! Let me get you booked in. What's your full name?",
-    "Great, let's get you scheduled. Could you please provide your full name?",
-    "Wonderful, I'd be happy to book an appointment for you. What's your full name?"
-  ],
-  farewell: [
-    "It was a pleasure chatting with you! Have a wonderful day.",
-    "Alright, take care! I'm always here if you need any other dental assistance.",
-    "Awesome, I'm glad I could help. Feel free to reach out anytime. Bye for now!"
-  ]
-};
-
-function handleUserInput(userMessage) {
-  if (userMessage.toLowerCase().includes("hi") || userMessage.toLowerCase().includes("hello")) {
-    const greetingIndex = Math.floor(Math.random() * customerServiceManual.greetings.length);
-    appendMessage("ai", customerServiceManual.greetings[greetingIndex]);
-  } else if (userMessage.toLowerCase().includes("something went wrong")) {
-    const troubleshootingIndex = Math.floor(Math.random() * customerServiceManual.troubleshooting.length);
-    appendMessage("ai", customerServiceManual.troubleshooting[troubleshootingIndex]);
-  } else if (userMessage.toLowerCase().includes("book")) {
-    const bookingIndex = Math.floor(Math.random() * customerServiceManual.bookingRequest.length);
-    appendMessage("ai", customerServiceManual.bookingRequest[bookingIndex]);
-  } else {
-    // Your existing logic to handle other user messages
-  }
-}
-
-// ── Boot Function ───────────────────────────────
-window.addEventListener("load", () => {
-  const greet = "Hello! I'm Rynar, your personal dental AI 🦷 I can help with symptoms, treatments, bookings, and more. What's going on with your smile today?";
-  appendMessage("ai", greet);
 });
