@@ -1,0 +1,6 @@
+{
+  "name": "rynar-dental-ai",
+  "version": "1.0.0",
+  "description": "Rynar Dental AI — Premium Smile Experience",
+  "engines": { "node": "18.x" }
+}
