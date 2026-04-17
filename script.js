@@ -1,5 +1,5 @@
 // ================================================
-// RYNAR DENTAL AI — script.js v3
+// RYNAR DENTAL AI — script.js v3 (fixed)
 // ================================================
 
 const CLINIC_WA = "254757902314";
@@ -255,7 +255,10 @@ function startJazz() {
 
 function stopJazz() {
   clearInterval(jazzTimer);
-  if (masterGain) { masterGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime+0.8); setTimeout(()=>{ try{masterGain.disconnect();}catch(e){} },1000); }
+  if (masterGain) {
+    masterGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime+0.8);
+    setTimeout(() => { try { masterGain.disconnect(); } catch(e) {} }, 1000);
+  }
 }
 
 function toggleJazz() {
@@ -265,39 +268,62 @@ function toggleJazz() {
 }
 
 // ════════════════════════════════════════════════
-// AI CALL
+// CHAT UI HELPERS
 // ════════════════════════════════════════════════
-async function askAI(userMsg, imageBase64=null) {
+function appendMessage(role, text) {
+  const box = document.getElementById("chat-box");
+  if (!box) return;
+  const div = document.createElement("div");
+  div.className = "msg " + role;
+  div.innerHTML = text
+    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*(.*?)\*/g, "<strong>$1</strong>");
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+function showTyping(show) {
+  const t = document.getElementById("typing");
+  if (t) t.style.display = show ? "flex" : "none";
+}
+
+// ════════════════════════════════════════════════
+// AI CALL  ← FIXED
+// ════════════════════════════════════════════════
+async function askAI(userMsg, imageBase64 = null) {
   showTyping(true);
   const userContent = imageBase64
     ? "The patient has uploaded a photo of their smile/teeth. Give warm observational feedback, note anything worth a professional look, and recommend a consultation."
     : userMsg;
-  chatHistory.push({ role:"user", content: userContent });
+  chatHistory.push({ role: "user", content: userContent });
   if (chatHistory.length > 20) chatHistory = chatHistory.slice(-20);
 
   try {
     const res = await fetch("/api/chat", {
-      method:"POST", headers:{"Content-Type":"application/json"},
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model:       "llama3-8b-8192",
-        messages:    [{role:"system",content:SYSTEM},...chatHistory],
+        messages:    [{ role: "system", content: SYSTEM }, ...chatHistory],
         temperature: 0.75,
-        max_tokens:  300
-      })
+        max_tokens:  300,
+      }),
     });
-    const data = await res.json();
+
     if (!res.ok) {
-  const errorText = await res.text();
-  return `Error ${res.status}: ${errorText}`;
-}
+      const errorData = await res.json(); // read body once here
+      showTyping(false);
+      return `Error ${res.status}: ${JSON.stringify(errorData)}`;
     }
+
+    const data  = await res.json(); // only reached when response is OK
     const reply = data.choices[0].message.content.trim();
-    chatHistory.push({role:"assistant",content:reply});
+    chatHistory.push({ role: "assistant", content: reply });
     showTyping(false);
     return reply;
-  } catch(e) {
+  } catch (e) {
     showTyping(false);
-    console.error("Fetch error:",e);
+    console.error("Fetch error:", e);
     return "I lost my connection for a second — try again?";
   }
 }
@@ -325,10 +351,38 @@ async function sendMessage() {
     appendMessage("ai", reply); speak(reply); return;
   }
 
-  // Everything else — let the AI handle it naturally including greetings and questions
   const reply = await askAI(text);
   appendMessage("ai", reply);
   speak(reply);
+}
+
+// ════════════════════════════════════════════════
+// KEYBOARD — Enter to send
+// ════════════════════════════════════════════════
+document.addEventListener("DOMContentLoaded", () => {
+  const input = document.getElementById("user-input");
+  if (input) {
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+    });
+  }
+});
+
+// ════════════════════════════════════════════════
+// VOICE INPUT — Speech Recognition
+// ════════════════════════════════════════════════
+function startVoiceInput() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { alert("Voice input isn't supported in this browser. Try Chrome."); return; }
+  const r = new SR();
+  r.lang = "en-US"; r.interimResults = false; r.maxAlternatives = 1;
+  r.onresult = (e) => {
+    const transcript = e.results[0][0].transcript;
+    const input = document.getElementById("user-input");
+    if (input) { input.value = transcript; sendMessage(); }
+  };
+  r.onerror = (e) => console.error("Speech error:", e.error);
+  r.start();
 }
 
 // ════════════════════════════════════════════════
@@ -337,8 +391,8 @@ async function sendMessage() {
 async function handleBookingField(value) {
   patientDraft[awaitingField] = value;
   const idx = FIELDS.indexOf(awaitingField);
-  if (idx < FIELDS.length-1) {
-    awaitingField = FIELDS[idx+1];
+  if (idx < FIELDS.length - 1) {
+    awaitingField = FIELDS[idx + 1];
     appendMessage("ai", PROMPTS[awaitingField]);
     speak(PROMPTS[awaitingField]);
   } else {
@@ -348,9 +402,9 @@ async function handleBookingField(value) {
 }
 
 async function confirmBooking() {
-  const b = patientDraft;
+  const b  = patientDraft;
   const id = "RD" + Date.now().toString().slice(-5);
-  const booking = {id, ...b, bookedAt: new Date().toLocaleString()};
+  const booking = { id, ...b, bookedAt: new Date().toLocaleString() };
   bookings.push(booking);
   localStorage.setItem("rynar_bookings", JSON.stringify(bookings));
   renderBookings();
@@ -366,12 +420,12 @@ async function confirmBooking() {
 
   const box = document.getElementById("chat-box");
   const a1  = document.createElement("a");
-  a1.href = waPatient; a1.target="_blank"; a1.className="wa-btn";
+  a1.href = waPatient; a1.target = "_blank"; a1.className = "wa-btn";
   a1.innerHTML = "📲 Send My Confirmation on WhatsApp";
   box.appendChild(a1);
 
   const a2 = document.createElement("a");
-  a2.href = waClinic; a2.target="_blank"; a2.className="wa-btn clinic";
+  a2.href = waClinic; a2.target = "_blank"; a2.className = "wa-btn clinic";
   a2.innerHTML = "🏥 Notify Clinic on WhatsApp";
   box.appendChild(a2);
 
@@ -390,391 +444,240 @@ function bookFromGuide() {
 // SYMPTOM CHECKER
 // ════════════════════════════════════════════════
 function buildSymptomGrid() {
-  const grid = document.getElementById("symptomGrid");
-  grid.innerHTML = "";
-  SYMPTOMS.forEach(s => {
-    const chip = document.createElement("div");
-    chip.className = "symptom-chip";
-    chip.dataset.id = s.id;
-    chip.innerHTML = `<span class="chip-icon">${s.icon}</span>${s.label}`;
-    chip.onclick = () => chip.classList.toggle("selected");
-    grid.appendChild(chip);
-  });
+  const grid = document.getElementById("symptom-grid");
+  if (!grid) return;
+  grid.innerHTML = SYMPTOMS.map(s => `
+    <div class="symptom-card" id="sym-${s.id}" onclick="toggleSymptom('${s.id}')">
+      <span class="sym-icon">${s.icon}</span>
+      <span class="sym-label">${s.label}</span>
+    </div>
+  `).join("");
 }
 
-async function diagnose() {
-  const selected = [...document.querySelectorAll(".symptom-chip.selected")].map(c => c.textContent.trim());
-  const other    = document.getElementById("symptomOther").value.trim();
-  if (!selected.length && !other) { alert("Please select at least one symptom."); return; }
-
-  const symptoms = [...selected, other].filter(Boolean).join(", ");
-  const box = document.getElementById("diagnosisResult");
-  box.classList.remove("hidden");
-  box.innerHTML = `<h3>🔍 Analysing your symptoms…</h3><p style="color:var(--muted);font-size:13px;margin-top:6px">Please wait a moment…</p>`;
-
-  const prompt = `A dental patient reports these symptoms: ${symptoms}.
-
-Respond ONLY with valid JSON in this exact structure — no text before or after:
-{
-  "summary": "one sentence summary of what may be going on",
-  "conditions": [
-    {
-      "name": "most likely condition name",
-      "emoji": "one relevant emoji",
-      "description": "brief 2-sentence explanation in plain language",
-      "urgency": "urgent",
-      "action": "what the patient should do"
-    }
-  ],
-  "pain_relief": "one practical pain tip if relevant, else empty string",
-  "book_message": "one warm encouraging sentence to book an appointment"
+function toggleSymptom(id) {
+  const card = document.getElementById("sym-" + id);
+  if (card) card.classList.toggle("selected");
 }
-Rules: urgency must be urgent, moderate, or routine. Give 1-2 conditions max. Be reassuring not alarming.`;
 
-  try {
-    // Direct fetch — don't use askAI() to avoid polluting chat history
-    const res = await fetch("/api/chat", {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model:       "llama3-8b-8192",
-        messages: [
-          { role: "system", content: "You are a dental diagnosis assistant. Always respond with valid JSON only. No markdown, no explanation outside the JSON." },
-          { role: "user",   content: prompt }
-        ],
-        temperature: 0.3,
-        max_tokens:  600
-      })
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err?.error?.message || `HTTP ${res.status}`);
-    }
-
-    const data = await res.json();
-    const raw  = data.choices[0].message.content.trim();
-
-    // Extract JSON robustly
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("No JSON found in response");
-    const result = JSON.parse(jsonMatch[0]);
-
-    let html = `<h3>🩺 ${result.summary || "Here is what I found"}</h3>`;
-
-    (result.conditions || []).forEach(c => {
-      const urgencyLabel = c.urgency === "urgent"   ? "⚠️ See dentist urgently"  :
-                           c.urgency === "moderate" ? "📅 See dentist soon"       : "✅ Routine visit";
-      html += `
-        <div class="dx-item">
-          <div class="dx-icon">${c.emoji || "🦷"}</div>
-          <div class="dx-info">
-            <h4>${c.name}</h4>
-            <p>${c.description}</p>
-            <p><strong style="color:var(--teal)">Recommended: </strong>${c.action}</p>
-            <span class="dx-urgency ${c.urgency || "routine"}">${urgencyLabel}</span>
-          </div>
-        </div>`;
-    });
-
-    if (result.pain_relief) {
-      html += `<div class="pain-tip">💊 <strong>Pain relief:</strong> ${result.pain_relief}</div>`;
-    }
-
-    html += `<p style="font-size:13px;color:var(--muted);margin:10px 0">${result.book_message || "Booking an appointment is the best next step."}</p>`;
-    html += `<div class="dx-actions">
-      <button class="dx-btn primary" onclick="triggerBooking()">📅 Book Appointment</button>
-      <button class="dx-btn secondary" onclick="showView('chat')">💬 Ask Rynar</button>
-    </div>`;
-
-    box.innerHTML = html;
-
-  } catch(e) {
-    console.error("Diagnose error:", e);
-    box.innerHTML = `
-      <h3>🩺 Assessment</h3>
-      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">
-        Based on your symptoms (${symptoms}), I recommend booking a consultation so our dentist can properly assess you.
-      </p>
-      <div class="pain-tip">💊 In the meantime — ibuprofen 400mg with food helps with most dental pain. Clove oil on the gum can also relieve toothache temporarily.</div>
-      <div class="dx-actions" style="margin-top:12px">
-        <button class="dx-btn primary" onclick="triggerBooking()">📅 Book Appointment</button>
-        <button class="dx-btn secondary" onclick="showView('chat')">💬 Chat with Rynar</button>
-      </div>`;
+async function analyseSymptoms() {
+  const selected = SYMPTOMS.filter(s =>
+    document.getElementById("sym-" + s.id)?.classList.contains("selected")
+  );
+  if (!selected.length) {
+    alert("Please select at least one symptom first.");
+    return;
   }
-}
-
-function triggerBooking() {
+  const list = selected.map(s => s.label).join(", ");
   showView("chat");
-  awaitingField = "name";
-  const msg = "Let me get you booked in. " + PROMPTS.name;
-  appendMessage("ai", msg);
-  speak(msg);
+  const msg = `I'm experiencing: ${list}`;
+  appendMessage("user", msg);
+  const reply = await askAI(msg);
+  appendMessage("ai", reply);
+  speak(reply);
+  // Deselect all after analysis
+  SYMPTOMS.forEach(s => document.getElementById("sym-" + s.id)?.classList.remove("selected"));
 }
 
 // ════════════════════════════════════════════════
 // TREATMENT GUIDES
 // ════════════════════════════════════════════════
-function buildGuides() {
-  const grid = document.getElementById("guidesGrid");
-  grid.innerHTML = "";
-  GUIDES.forEach(g => {
-    const card = document.createElement("div");
-    card.className = "guide-card";
-    card.innerHTML = `<span class="guide-emoji">${g.emoji}</span><h3>${g.title}</h3><p>${g.tagline}</p>`;
-    card.onclick = () => showGuideDetail(g.id);
-    grid.appendChild(card);
-  });
+function renderGuides() {
+  const list = document.getElementById("guides-list");
+  if (!list) return;
+  list.innerHTML = GUIDES.map(g => `
+    <div class="guide-card" onclick="showGuide('${g.id}')">
+      <span class="guide-emoji">${g.emoji}</span>
+      <div class="guide-info">
+        <strong>${g.title}</strong>
+        <p>${g.tagline}</p>
+      </div>
+      <span class="guide-arrow">›</span>
+    </div>
+  `).join("");
 }
 
-function showGuideDetail(id) {
-  const g = GUIDES.find(g => g.id === id);
+function showGuide(id) {
+  const g = GUIDES.find(x => x.id === id);
   if (!g) return;
-  const stepsHtml = g.steps.map((s,i) => `<li data-n="${i+1}">${s}</li>`).join("");
-  document.getElementById("guideDetail").innerHTML = `
-    <span class="guide-detail-emoji">${g.emoji}</span>
-    <div class="guide-detail">
-      <h2>${g.title}</h2>
-      <p style="color:var(--teal);font-size:12px;margin-bottom:10px">⏱ ${g.duration} &nbsp;|&nbsp; 📅 ${g.sessions}</p>
-      <p>${g.desc}</p>
-      <div class="pain-tip">💊 <strong>Pain tip:</strong> ${g.pain}</div>
-      <p style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px">What happens step by step:</p>
-      <ul class="guide-steps">${stepsHtml}</ul>
-    </div>`;
-  showView("guide-detail");
+  const detail = document.getElementById("guide-detail");
+  const list   = document.getElementById("guides-list");
+  if (!detail || !list) return;
+
+  const urgencyColour = { routine:"#2ecc71", moderate:"#f39c12", urgent:"#e74c3c", varies:"#3498db" };
+  const colour = urgencyColour[g.urgency] || "#888";
+
+  detail.innerHTML = `
+    <div class="guide-header">
+      <span class="guide-big-emoji">${g.emoji}</span>
+      <div>
+        <h2>${g.title}</h2>
+        <span class="guide-tagline">${g.tagline}</span>
+      </div>
+    </div>
+    <p class="guide-desc">${g.desc}</p>
+    <div class="guide-meta">
+      <span>⏱ ${g.duration}</span>
+      <span>📅 ${g.sessions}</span>
+      <span style="color:${colour}">● ${g.urgency.charAt(0).toUpperCase() + g.urgency.slice(1)}</span>
+    </div>
+    <h3>What happens step by step:</h3>
+    <ol class="guide-steps">${g.steps.map(s => `<li>${s}</li>`).join("")}</ol>
+    <div class="guide-pain-box">
+      <strong>💊 Pain management:</strong>
+      <p>${g.pain}</p>
+    </div>
+  `;
+  list.style.display   = "none";
+  detail.style.display = "block";
+  const backBtn = document.getElementById("guide-back");
+  if (backBtn) backBtn.style.display = "inline-flex";
+}
+
+function backToGuides() {
+  const list   = document.getElementById("guides-list");
+  const detail = document.getElementById("guide-detail");
+  const backBtn = document.getElementById("guide-back");
+  if (list)   list.style.display   = "grid";
+  if (detail) detail.style.display = "none";
+  if (backBtn) backBtn.style.display = "none";
 }
 
 // ════════════════════════════════════════════════
-// PAYMENT
+// PAYMENT PLANS
 // ════════════════════════════════════════════════
-function buildPaymentCards() {
-  const container = document.getElementById("paymentCards");
-  container.innerHTML = "";
-  PLANS.forEach(p => {
-    const card = document.createElement("div");
-    card.className = "pay-card" + (p.featured ? " featured" : "");
-    const priceHtml = p.currency
-      ? `<div class="pay-price"><span class="pay-currency">${p.currency}</span>${p.price}</div>`
-      : `<div class="pay-price">${p.price}</div>`;
-    const badgeHtml = p.featured ? `<span class="pay-badge">Popular</span>` : "";
-    const featuresHtml = p.features.map(f => `<li>${f}</li>`).join("");
-    card.innerHTML = `
-      <div class="pay-card-header"><h3>${p.title}${badgeHtml}</h3>${priceHtml}</div>
-      <p>${p.desc}</p>
-      <ul class="pay-features">${featuresHtml}</ul>
-      ${p.id !== "ai_consult" ? `<button class="pay-btn" onclick="selectPlan('${p.id}')">Book This →</button>` : ""}`;
-    container.appendChild(card);
-  });
+function renderPaymentPlans() {
+  const container = document.getElementById("plans-container");
+  if (!container) return;
+  container.innerHTML = PLANS.map(p => `
+    <div class="plan-card ${p.featured ? "featured" : ""} ${selectedPlan === p.id ? "chosen" : ""}"
+         onclick="selectPlan('${p.id}')">
+      ${p.featured ? '<div class="plan-badge">Most Popular</div>' : ""}
+      <h3>${p.title}</h3>
+      <div class="plan-price">
+        ${p.currency ? `<span class="plan-currency">${p.currency}</span>` : ""}
+        <span class="plan-amount">${p.price}</span>
+      </div>
+      <p class="plan-desc">${p.desc}</p>
+      <ul class="plan-features">
+        ${p.features.map(f => `<li>✓ ${f}</li>`).join("")}
+      </ul>
+      <button class="plan-btn ${selectedPlan === p.id ? "selected" : ""}">
+        ${selectedPlan === p.id ? "Selected ✓" : "Select Plan"}
+      </button>
+    </div>
+  `).join("");
 }
 
-function selectPlan(planId) {
-  selectedPlan = PLANS.find(p => p.id === planId);
-  if (!selectedPlan) return;
-  document.getElementById("paymentCards").style.display = "none";
-  document.getElementById("paymentForm").classList.remove("hidden");
-  document.getElementById("payFormTitle").textContent = `Complete: ${selectedPlan.title}`;
-  document.getElementById("selectedPlanDisplay").textContent =
-    `${selectedPlan.title} — ${selectedPlan.currency} ${selectedPlan.price}`;
-}
-
-function processPayment() {
-  const name  = document.getElementById("payName").value.trim();
-  const phone = document.getElementById("payPhone").value.trim();
-  const email = document.getElementById("payEmail").value.trim();
-  if (!name || !phone) { alert("Please fill in your name and WhatsApp number."); return; }
-
+function selectPlan(id) {
+  selectedPlan = id;
+  renderPaymentPlans();
+  const plan = PLANS.find(p => p.id === id);
+  if (!plan) return;
   const msg = encodeURIComponent(
-    `💳 *Rynar Dental — ${selectedPlan.title}*\n\n` +
-    `👤 Name: ${name}\n📱 Phone: ${phone}\n📧 Email: ${email || "—"}\n` +
-    `💰 Amount: ${selectedPlan.currency} ${selectedPlan.price}\n\n` +
-    `Please send payment details and confirm my booking. Thank you!`
+    `Hi Rynar Dental 👋\n\nI'd like to book the *${plan.title}*${plan.currency ? ` (${plan.currency} ${plan.price})` : ""}.\n\nPlease send me the payment details. Thank you!`
   );
-  window.open(`https://wa.me/${CLINIC_WA}?text=${msg}`, "_blank");
+  const waBtn = document.getElementById("wa-pay-btn");
+  if (waBtn) waBtn.href = `https://wa.me/${CLINIC_WA}?text=${msg}`;
+}
 
-  document.getElementById("paymentForm").classList.add("hidden");
-  document.getElementById("paymentCards").style.display = "flex";
-  document.getElementById("paymentCards").style.flexDirection = "column";
-
-  showView("chat");
-  const reply = `Thanks ${name}! 🙏 Your ${selectedPlan.title} request has been sent to the clinic on WhatsApp. They'll confirm your booking and share payment details shortly.`;
-  appendMessage("ai", reply);
-  speak(reply);
+function completeBooking() {
+  if (!selectedPlan) { alert("Please select a plan first."); return; }
+  const waBtn = document.getElementById("wa-pay-btn");
+  if (waBtn) window.open(waBtn.href, "_blank");
 }
 
 // ════════════════════════════════════════════════
-// GALLERY
+// SMILE GALLERY
 // ════════════════════════════════════════════════
-function renderGallery() {
-  const grid = document.getElementById("galleryGrid");
-  if (!gallery.length) {
-    grid.innerHTML = `<div class="gallery-empty">No photos yet — upload a smile photo to get started.</div>`;
-    return;
-  }
-  grid.innerHTML = "";
-  gallery.forEach((item, i) => {
-    const div = document.createElement("div");
-    div.className = "gallery-item";
-    div.innerHTML = `<img src="${item.src}" alt="Smile photo"/><div class="gallery-item-label">${item.date}</div><button class="del-img" onclick="deleteGalleryItem(${i})">✕</button>`;
-    grid.appendChild(div);
-  });
-}
-
-function handleGalleryUpload(e) {
-  const file = e.target.files[0];
+function handleImageUpload(input) {
+  const file = input.files[0];
   if (!file) return;
-  e.target.value = "";
+  if (!file.type.startsWith("image/")) { alert("Please upload an image file."); return; }
   const reader = new FileReader();
-  reader.onload = ev => {
-    gallery.push({ src: ev.target.result, date: new Date().toLocaleDateString() });
+  reader.onload = async (e) => {
+    const dataURL = e.target.result;
+    const base64  = dataURL.split(",")[1];
+    gallery.push({ src: dataURL, date: new Date().toLocaleString() });
     localStorage.setItem("rynar_gallery", JSON.stringify(gallery));
     renderGallery();
+    showView("chat");
+    appendMessage("user", "📷 [Smile photo uploaded]");
+    const reply = await askAI(null, base64);
+    appendMessage("ai", reply);
+    speak(reply);
   };
   reader.readAsDataURL(file);
+  input.value = ""; // reset so same file can be re-uploaded
 }
 
-function deleteGalleryItem(i) {
-  if (!confirm("Remove this photo?")) return;
-  gallery.splice(i,1);
+function renderGallery() {
+  const container = document.getElementById("gallery-container");
+  if (!container) return;
+  if (!gallery.length) {
+    container.innerHTML = '<p class="gallery-empty">No photos yet — upload a smile photo to get started.</p>';
+    return;
+  }
+  container.innerHTML = gallery.map((img, i) => `
+    <div class="gallery-item">
+      <img src="${img.src}" alt="Smile photo ${i + 1}" loading="lazy">
+      <div class="gallery-meta">${img.date}</div>
+      <button class="gallery-delete" onclick="deletePhoto(${i})">🗑️ Delete</button>
+    </div>
+  `).join("");
+}
+
+function deletePhoto(i) {
+  if (!confirm("Delete this photo?")) return;
+  gallery.splice(i, 1);
   localStorage.setItem("rynar_gallery", JSON.stringify(gallery));
   renderGallery();
 }
 
 // ════════════════════════════════════════════════
-// IMAGE UPLOAD (chat)
-// ════════════════════════════════════════════════
-async function handleImageUpload(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  e.target.value = "";
-  showView("chat");
-  const reader = new FileReader();
-  reader.onload = async ev => {
-    const b64  = ev.target.result;
-    // Save to gallery
-    gallery.push({ src: b64, date: new Date().toLocaleDateString() });
-    localStorage.setItem("rynar_gallery", JSON.stringify(gallery));
-
-    const box  = document.getElementById("chat-box");
-    const wrap = document.createElement("div");
-    wrap.className = "message user";
-    const img = document.createElement("img");
-    img.src = b64;
-    img.style.cssText = "max-width:190px;border-radius:10px;margin-top:4px;display:block";
-    wrap.appendChild(img);
-    box.appendChild(wrap);
-    box.scrollTop = box.scrollHeight;
-
-    const reply = await askAI("Please analyse this smile photo.", b64);
-    appendMessage("ai", reply);
-    speak(reply);
-  };
-  reader.readAsDataURL(file);
-}
-
-// ════════════════════════════════════════════════
-// ADMIN
+// BOOKINGS DASHBOARD
 // ════════════════════════════════════════════════
 function renderBookings() {
-  const tbody = document.getElementById("bookingBody");
-  const empty = document.getElementById("emptyMsg");
-  tbody.innerHTML = "";
-  if (!bookings.length) { empty.style.display="block"; return; }
-  empty.style.display = "none";
-  bookings.forEach((b,i) => {
-    const phone = b.phone.replace(/\D/g,"");
-    const msg   = encodeURIComponent(`Hi ${b.name}, confirming your Rynar Dental appointment on ${b.date} at ${b.time}. See you soon! 😊`);
-    const tr    = document.createElement("tr");
-    tr.innerHTML = `
-      <td style="font-size:11px;color:var(--muted)">${b.id}</td>
-      <td><strong>${b.name}</strong><br><small>${b.service}</small><br><small>${b.phone}</small></td>
-      <td>${b.date}<br><small>${b.time}</small></td>
+  const tbody = document.getElementById("bookings-tbody");
+  if (!tbody) return;
+  if (!bookings.length) {
+    tbody.innerHTML = '<tr><td colspan="4" class="empty-row">No bookings yet.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = bookings.map((b, i) => `
+    <tr>
+      <td><strong>${b.id}</strong></td>
+      <td>${b.name}<br><small>${b.phone}</small></td>
+      <td>${b.date} @ ${b.time}<br><small>${b.service}</small></td>
       <td>
-        <a href="https://wa.me/${phone}?text=${msg}" target="_blank" class="wa-icon">📲</a>
-        <button class="del-btn" onclick="deleteBooking(${i})">🗑</button>
-      </td>`;
-    tbody.appendChild(tr);
-  });
+        <button class="del-btn" onclick="deleteBooking(${i})" title="Cancel booking">🗑️</button>
+      </td>
+    </tr>
+  `).join("");
 }
 
 function deleteBooking(i) {
-  if (!confirm("Remove this booking?")) return;
-  bookings.splice(i,1);
+  if (!confirm("Cancel this booking?")) return;
+  bookings.splice(i, 1);
   localStorage.setItem("rynar_bookings", JSON.stringify(bookings));
   renderBookings();
 }
 
 // ════════════════════════════════════════════════
-// VOICE INPUT
+// INIT
 // ════════════════════════════════════════════════
-function startListening() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { appendMessage("ai","Voice input works best in Chrome 😊"); return; }
-  navigator.mediaDevices.getUserMedia({ audio: true })
-    .then(() => {
-      const r      = new SR();
-      r.lang       = "en-US";
-      const micBtn = document.getElementById("micBtn");
-      const label  = micBtn ? micBtn.querySelector(".btn-label") : null;
-      if (micBtn) micBtn.classList.add("listening");
-      if (label)  label.textContent = "Listening…";
-      r.start();
-      r.onresult = e => {
-        const t = e.results[0][0].transcript;
-        document.getElementById("user-input").value = t;
-        if (micBtn) micBtn.classList.remove("listening");
-        if (label)  label.textContent = "Tap to speak";
-        sendMessage();
-      };
-      r.onerror = e => {
-        if (micBtn) micBtn.classList.remove("listening");
-        if (label)  label.textContent = "Tap to speak";
-        if (e.error === "not-allowed")
-          appendMessage("ai","Mic access was blocked — please allow microphone permission in your browser settings.");
-      };
-      r.onend = () => {
-        if (micBtn) micBtn.classList.remove("listening");
-        if (label)  label.textContent = "Tap to speak";
-      };
-    })
-    .catch(() => appendMessage("ai","I need microphone access — please allow it in your browser settings."));
-}
-
-// ════════════════════════════════════════════════
-// HELPERS
-// ════════════════════════════════════════════════
-function appendMessage(sender, text) {
-  const box = document.getElementById("chat-box");
-  const div = document.createElement("div");
-  div.className = "message " + sender;
-  div.innerHTML = text.replace(/\*([^*]+)\*/g,"<strong>$1</strong>").replace(/\n/g,"<br>");
-  box.appendChild(div);
-  box.scrollTop = box.scrollHeight;
-}
-
-function showTyping(show) {
-  document.getElementById("typing-indicator").classList.toggle("hidden",!show);
-  if (show) document.getElementById("chat-box").scrollTop = 9999;
-}
-
-// ════════════════════════════════════════════════
-// BOOT
-// ════════════════════════════════════════════════
-window.addEventListener("load", () => {
+window.addEventListener("DOMContentLoaded", () => {
   loadVoices();
   buildSymptomGrid();
-  buildGuides();
-  buildPaymentCards();
-  renderBookings();
+  renderGuides();
+  renderPaymentPlans();
   renderGallery();
+  renderBookings();
+  showView("chat");
 
+  // Welcome message after short delay
   setTimeout(() => {
-    loadVoices();
-    // Only greet once — don't repeat on every page refresh
-    const chatBox = document.getElementById("chat-box");
-    if (chatBox && chatBox.children.length === 0) {
-      const greet = "Hey there 😊 I'm Rynar, your dental assistant. What's going on with your smile today?";
-      appendMessage("ai", greet);
-      setTimeout(() => speak(greet), 400);
-    }
-  }, 700);
+    const welcome = "Hey there! 😊 I'm Rynar, your dental assistant. What's going on with your teeth today?";
+    appendMessage("ai", welcome);
+    speak(welcome);
+  }, 600);
 });
