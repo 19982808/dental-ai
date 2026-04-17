@@ -1,4 +1,5 @@
 // api/chat.js — Vercel serverless function
+
 export default async function handler(req, res) {
   if (req.method === "OPTIONS") {
     res.setHeader("Access-Control-Allow-Origin", "*");
@@ -21,10 +22,10 @@ export default async function handler(req, res) {
   try {
     const { model, messages, temperature, max_tokens } = req.body;
 
-    const body = {
-      model: model || "llama3-8b-8192",
+    const requestBody = {
+      model: model || "llama3-70b-8192", // Updated model
       messages: messages,
-      temperature: temperature || 0.75,
+      temperature: temperature || 0.9,  // Optional randomness
       max_tokens: max_tokens || 300,
     };
 
@@ -34,7 +35,7 @@ export default async function handler(req, res) {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
@@ -44,7 +45,15 @@ export default async function handler(req, res) {
     }
 
     const data = await response.json();
-    return res.status(200).json(data);
+    
+    // Transform the response to match the format your front-end expects
+    const transformedResponse = {
+      choices: data.choices.map(choice => ({
+        message: { content: choice.message.content }
+      }))
+    };
+
+    return res.status(200).json(transformedResponse);
 
   } catch (err) {
     console.error("Handler error:", err.message);
