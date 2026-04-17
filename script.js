@@ -318,7 +318,7 @@ function showTyping(show) {
 }
 
 // ════════════════════════════════════════════════
-// AI CALL  ← FIXED
+// AI CALL
 // ════════════════════════════════════════════════
 async function askAI(userMsg, imageBase64 = null) {
   showTyping(true);
@@ -519,12 +519,12 @@ async function analyseSymptoms() {
   showView("chat");
   appendMessage("user", `I'm experiencing: ${list}`);
   
-  appendMessage("ai", "Give me a second — I'm taking a careful look at that… 👀"); // Added feedback for analysis
-  
+  appendMessage("ai", "Give me a second — I'm taking a careful look at that… 👀");
+
   const reply = await askAI(
-    `Patient reports: ${list}. Give a likely cause, urgency level, and what they should do next in a calm, reassuring tone.`
+    `Patient reports: ${list}. Provide a clear likely cause, urgency level, and specific actions tailored to this case in a calm, reassuring tone.`
   );
-  
+
   appendMessage("ai", reply);
   speak(reply);
   
