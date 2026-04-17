@@ -29,6 +29,39 @@ const PROMPTS = {
   service: "What are you coming in for? Checkup, cleaning, whitening, braces, extraction, or something else?"
 };
 
+// ── Memory ───────────────────────────────────────
+let userMemory = {
+  name: null,
+  lastSymptoms: null,
+};
+
+// ── Voice input ──────────────────────────────────
+let recognition;
+let isListening = false;
+
+function startVoice() {
+  if (!('webkitSpeechRecognition' in window)) {
+    alert("Voice not supported on this device");
+    return;
+  }
+
+  recognition = new webkitSpeechRecognition();
+  recognition.lang = "en-US";
+  recognition.continuous = false;
+
+  recognition.onstart = () => isListening = true;
+
+  recognition.onresult = (event) => {
+    const text = event.results[0][0].transcript;
+    document.querySelector("input").value = text;
+    sendMessage();
+  };
+
+  recognition.onend = () => isListening = false;
+
+  recognition.start();
+}
+
 // ── System prompt ─────────────────────────────────
 const SYSTEM = `You are Rynar — the friendly dental assistant at Rynar Dental clinic.
 
@@ -197,13 +230,10 @@ function loadVoices() {
 if (typeof speechSynthesis !== "undefined") speechSynthesis.onvoiceschanged = loadVoices;
 
 function speak(text) {
-  if (!voiceOn || !text) return;
-  speechSynthesis.cancel();
-  const clean = text.replace(/<[^>]*>/g,"").replace(/[*_]/g,"").substring(0, 300);
-  const utt   = new SpeechSynthesisUtterance(clean);
-  if (chosenVoice) utt.voice = chosenVoice;
-  utt.rate = 0.88; utt.pitch = 0.75; utt.volume = 1;
-  speechSynthesis.speak(utt);
+  const speech = new SpeechSynthesisUtterance(text);
+  speech.rate = 1;
+  speech.pitch = 1;
+  speechSynthesis.speak(speech);
 }
 
 function toggleVoice() {
@@ -293,8 +323,9 @@ function showTyping(show) {
 async function askAI(userMsg, imageBase64 = null) {
   showTyping(true);
   const userContent = imageBase64
-    ? "The patient has uploaded a photo of their smile/teeth. Give warm observational feedback, note anything worth a professional look, and recommend a consultation."
+    ? "The patient uploaded an image. Analyse possible visible dental issues carefully and avoid guessing. Then respond helpfully."
     : userMsg;
+  
   chatHistory.push({ role: "user", content: userContent });
   if (chatHistory.length > 20) chatHistory = chatHistory.slice(-20);
 
@@ -303,9 +334,9 @@ async function askAI(userMsg, imageBase64 = null) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model:       "llama3-8b-8192",
+        model:       "llama3-70b-8192", // updated model
         messages:    [{ role: "system", content: SYSTEM }, ...chatHistory],
-        temperature: 0.75,
+        temperature: 0.9, // optional randomness for varied responses
         max_tokens:  300,
       }),
     });
@@ -313,12 +344,14 @@ async function askAI(userMsg, imageBase64 = null) {
     if (!res.ok) {
       const errorData = await res.json(); // read body once here
       showTyping(false);
-      return `Error ${res.status}: ${JSON.stringify(errorData)}`;
+      return "Hmm… I had a small connection issue just now. Try again — I'm here 😊"; // improved error message
     }
 
     const data  = await res.json(); // only reached when response is OK
     const reply = data.choices[0].message.content.trim();
     chatHistory.push({ role: "assistant", content: reply });
+    
+    speak(reply); // Added speech output for responses
     showTyping(false);
     return reply;
   } catch (e) {
@@ -335,10 +368,24 @@ async function sendMessage() {
   const input = document.getElementById("user-input");
   const text  = input.value.trim();
   if (!text) return;
-  input.value = "";
-  appendMessage("user", text);
 
-  if (awaitingField) { await handleBookingField(text); return; }
+  appendMessage("user", text);
+  input.value = "";
+
+  showTyping(true); // Added for smoother UX
+
+  if (awaitingField) { 
+    await handleBookingField(text); 
+    return; 
+  }
+
+  // Detect user name if not already known
+  if (!userMemory.name) {
+    const match = text.match(/my name is (\w+)|i am (\w+)|i'm (\w+)/i);
+    if (match) {
+      userMemory.name = match[1] || match[2] || match[3];
+    }
+  }
 
   if (/\b(book|appointment|schedule|come in|visit|slot|reserve)\b/i.test(text)) {
     awaitingField = "name";
@@ -353,7 +400,7 @@ async function sendMessage() {
 
   const reply = await askAI(text);
   appendMessage("ai", reply);
-  speak(reply);
+  showTyping(false); // Moved here for clarity
 }
 
 // ════════════════════════════════════════════════
@@ -467,13 +514,20 @@ async function analyseSymptoms() {
     alert("Please select at least one symptom first.");
     return;
   }
+
   const list = selected.map(s => s.label).join(", ");
   showView("chat");
-  const msg = `I'm experiencing: ${list}`;
-  appendMessage("user", msg);
-  const reply = await askAI(msg);
+  appendMessage("user", `I'm experiencing: ${list}`);
+  
+  appendMessage("ai", "Give me a second — I'm taking a careful look at that… 👀"); // Added feedback for analysis
+  
+  const reply = await askAI(
+    `Patient reports: ${list}. Give a likely cause, urgency level, and what they should do next in a calm, reassuring tone.`
+  );
+  
   appendMessage("ai", reply);
   speak(reply);
+  
   // Deselect all after analysis
   SYMPTOMS.forEach(s => document.getElementById("sym-" + s.id)?.classList.remove("selected"));
 }
@@ -526,7 +580,13 @@ function showGuide(id) {
       <strong>💊 Pain management:</strong>
       <p>${g.pain}</p>
     </div>
+    <div style="margin-top:15px;">
+      <button class="primary-btn" onclick="bookFromGuide()">
+        📅 Book this treatment
+      </button>
+    </div>
   `;
+  
   list.style.display   = "none";
   detail.style.display = "block";
   const backBtn = document.getElementById("guide-back");
@@ -573,13 +633,18 @@ function selectPlan(id) {
   renderPaymentPlans();
   const plan = PLANS.find(p => p.id === id);
   if (!plan) return;
+
   const msg = encodeURIComponent(
     `Hi Rynar Dental 👋\n\nI'd like to book the *${plan.title}*${plan.currency ? ` (${plan.currency} ${plan.price})` : ""}.\n\nPlease send me the payment details. Thank you!`
   );
+  
   const waBtn = document.getElementById("wa-pay-btn");
   if (waBtn) waBtn.href = `https://wa.me/${CLINIC_WA}?text=${msg}`;
+
+  appendMessage("ai", `Nice choice — the *${plan.title}* plan is a great option. Tap below to continue on WhatsApp and we'll get you sorted quickly.`);
 }
 
+// Function to handle completion of booking with payment plan
 function completeBooking() {
   if (!selectedPlan) { alert("Please select a plan first."); return; }
   const waBtn = document.getElementById("wa-pay-btn");
