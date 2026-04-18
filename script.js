@@ -282,7 +282,7 @@ async function askAI(userMsg, imageBase64=null) {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model:       "llama3-8b-8192",
+        model:       "llama-3.3-70b-versatile",
         messages:    [{ role:"system", content:SYSTEM }, ...chatHistory],
         temperature: 0.75,
         max_tokens:  300
@@ -468,7 +468,7 @@ Rules: urgency must be urgent, moderate, or routine. Give 1-2 conditions max. Be
       method:  "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model:       "llama3-8b-8192",
+        model:       "llama-3.3-70b-versatile",
         messages: [
           { role: "system", content: "You are a dental diagnosis assistant. Always respond with valid JSON only. No markdown, no explanation outside the JSON." },
           { role: "user",   content: prompt }
