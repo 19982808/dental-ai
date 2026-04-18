@@ -34,7 +34,7 @@ export default async function handler(req, res) {
   // ── Call Groq ─────────────────────────────────
   try {
     const body = {
-      model:       model       || "llama3-8b-8192",
+      model:       model       || "llama-3.3-70b-versatile",
       messages:    messages,
       temperature: temperature || 0.75,
       max_tokens:  max_tokens  || 300,
