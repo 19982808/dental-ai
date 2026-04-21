@@ -118,7 +118,37 @@
       </div>
     </div>
   </div>
+<form id="payForm">
+  <input name="name" placeholder="Full Name" required />
+  <input name="email" placeholder="Email" required />
+  <input name="phone" placeholder="Phone (2547...)" required />
+  <input name="amount" type="number" placeholder="Amount (KES)" required />
+  <button type="submit">Pay for Treatment</button>
+</form>
 
+<script>
+document.getElementById("payForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const data = Object.fromEntries(new FormData(e.target));
+
+  const res = await fetch("/api/pay", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(data)
+  });
+
+  const result = await res.json();
+
+  if (result.status === "success") {
+    window.location.href = result.data.link;
+  } else {
+    alert("Payment failed. Try again.");
+  }
+});
+</script>
   <!-- ═══ GALLERY VIEW ═══ -->
   <div id="view-gallery" class="view">
     <div class="view-scroll">
