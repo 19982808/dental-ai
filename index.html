@@ -4,9 +4,11 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Rynar Dental AI</title>
+
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="style.css"/>
 </head>
+
 <body>
 <div class="app">
 
@@ -17,18 +19,15 @@
       <h1>Rynar Dental AI</h1>
       <p>Premium Smile Experience</p>
     </div>
+
     <div class="hdr-btns">
-      <button class="hdr-btn" id="jazzBtn" onclick="toggleJazz()" title="Background jazz">
-        <div class="eq"><span></span><span></span><span></span><span></span></div>
-      </button>
-      <button class="hdr-btn on" id="voiceBtn" onclick="toggleVoice()" title="Toggle voice">🔊</button>
       <button class="hdr-btn" onclick="showView('payment')" title="Payment">💳</button>
-      <button class="hdr-btn" onclick="showView('gallery')" title="Image Gallery">🖼️</button>
+      <button class="hdr-btn" onclick="showView('gallery')" title="Gallery">🖼️</button>
       <button class="hdr-btn" onclick="showView('admin')" title="Admin">⚙️</button>
     </div>
   </div>
 
-  <!-- NAV TABS -->
+  <!-- NAV -->
   <div class="nav-tabs">
     <button class="nav-tab active" onclick="showView('chat')">💬 Chat</button>
     <button class="nav-tab" onclick="showView('symptom')">🩺 Symptoms</button>
@@ -36,215 +35,166 @@
     <button class="nav-tab" onclick="showView('payment')">💳 Pay</button>
   </div>
 
-  <!-- ═══ CHAT VIEW ═══ -->
+  <!-- CHAT -->
   <div id="view-chat" class="view active">
     <div id="chat-box"></div>
-    <div id="typing-indicator" class="typing hidden">
-      <span></span><span></span><span></span>
-    </div>
+
     <div class="input-area">
-      <div class="text-row">
-        <input type="text" id="user-input"
-               placeholder="Type your message here…"
-               onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}"
-               autocomplete="off"/>
-        <button class="send-btn" onclick="sendMessage()" title="Send">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-               stroke-linecap="round" stroke-linejoin="round" width="17" height="17">
-            <line x1="22" y1="2" x2="11" y2="13"/>
-            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-          </svg>
-        </button>
-      </div>
-      <div class="action-row">
-        <button class="action-btn mic-btn" id="micBtn" onclick="startListening()">
-          <span class="btn-icon">🎤</span>
-          <span class="btn-label">Tap to speak</span>
-        </button>
-        <button class="action-btn img-btn" onclick="document.getElementById('imgInput').click()">
-          <span class="btn-icon">📷</span>
-          <span class="btn-label">Upload smile</span>
-        </button>
-      </div>
+      <input id="user-input" placeholder="Type message..." />
+      <button onclick="sendMessage()">Send</button>
     </div>
   </div>
 
-  <!-- ═══ SYMPTOM CHECKER VIEW ═══ -->
+  <!-- SYMPTOMS -->
   <div id="view-symptom" class="view">
     <div class="view-scroll">
-      <div class="section-title">🩺 What are you experiencing?</div>
-      <p class="section-sub">Select all that apply — I'll help figure out what's going on.</p>
-      <div class="symptom-grid" id="symptomGrid"></div>
-      <div class="symptom-other">
-        <input type="text" id="symptomOther" placeholder="Or describe in your own words…"/>
-      </div>
-      <button class="teal-btn" onclick="diagnose()">Analyse My Symptoms →</button>
-      <div id="diagnosisResult" class="diagnosis-box hidden"></div>
+      <h2>Symptoms Checker</h2>
+      <div id="symptomGrid"></div>
+      <button onclick="diagnose()">Analyse</button>
+      <div id="diagnosisResult"></div>
     </div>
   </div>
 
-  <!-- ═══ GUIDES VIEW ═══ -->
+  <!-- GUIDES -->
   <div id="view-guides" class="view">
     <div class="view-scroll">
-      <div class="section-title">📚 Treatment Guides</div>
-      <p class="section-sub">Tap any treatment to learn what it involves.</p>
-      <div class="guides-grid" id="guidesGrid"></div>
+      <h2>Treatment Guides</h2>
+      <div id="guidesGrid"></div>
     </div>
   </div>
 
-  <!-- ═══ GUIDE DETAIL VIEW ═══ -->
-  <div id="view-guide-detail" class="view">
-    <div class="view-scroll">
-      <button class="back-link" onclick="showView('guides')">← Back to Guides</button>
-      <div id="guideDetail"></div>
-      <button class="teal-btn" onclick="bookFromGuide()">Book an Appointment →</button>
-    </div>
-  </div>
-
-  <!-- ═══ PAYMENT VIEW ═══ -->
+  <!-- PAYMENT -->
   <div id="view-payment" class="view">
     <div class="view-scroll">
-      <div class="section-title">💳 Consultation Options</div>
-      <p class="section-sub">Choose how you'd like to connect with our dental team.</p>
-      <div class="payment-cards" id="paymentCards"></div>
-      <div class="payment-form hidden" id="paymentForm">
-        <div class="section-title" id="payFormTitle">Complete Booking</div>
-        <input type="text" class="form-input" id="payName" placeholder="Your full name"/>
-        <input type="text" class="form-input" id="payPhone" placeholder="WhatsApp number (+254…)"/>
-        <input type="email" class="form-input" id="payEmail" placeholder="Email address"/>
-        <div class="selected-plan" id="selectedPlanDisplay"></div>
-        <button class="teal-btn" onclick="processPayment()">Confirm & Pay via WhatsApp →</button>
-        <p class="pay-note">Payment link will be sent to your WhatsApp. We accept M-Pesa, card, and bank transfer.</p>
+      <h2>Consultation Plans</h2>
+
+      <div class="payment-cards">
+        <button onclick="openPesapal(500)">Basic – KES 500</button>
+        <button onclick="openPesapal(1500)">Premium – KES 1500</button>
       </div>
     </div>
   </div>
-  <!-- ===== PESAPAL MODAL ===== -->
-  <div id="pesapalModal" class="modal hidden">
-    <div class="modal-content">
-      <h3>Complete Payment</h3>
 
-      <input id="pesapalName" placeholder="Full Name"/>
-      <input id="pesapalEmail" placeholder="Email"/>
-      <input id="pesapalPhone" placeholder="Phone (+254...)"/>
+  <!-- PESAPAL MODAL -->
+  <div id="pesapalModal" class="modal hidden">
+    <div class="modal-content">
 
-      <div id="pesapalAmount"></div>
+      <h3>Complete Payment</h3>
 
-      <button class="teal-btn" onclick="submitPesapal()">Proceed →</button>
-      <button class="close-btn" onclick="closePesapal()">Cancel</button>
-    </div>
-  </div>
+      <input id="pesapalName" placeholder="Full Name"/>
+      <input id="pesapalEmail" placeholder="Email"/>
+      <input id="pesapalPhone" placeholder="Phone (+254...)"/>
 
-</div>
+      <div id="pesapalAmount"></div>
 
-<script>
-document.getElementById("payForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
+      <button id="payBtn" class="teal-btn" onclick="submitPesapal()">Proceed →</button>
+      <button class="close-btn" onclick="closePesapal()">Cancel</button>
 
-  const data = Object.fromEntries(new FormData(e.target));
+    </div>
+  </div>
 
-  const res = await fetch("/api/pay", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data)
-  });
-
-  const result = await res.json();
-
-  if (result.redirect_url) {
-    window.location.href = result.redirect_url;
-  } else {
-    alert("Payment failed");
-  }
-});
-</script>
-    
-  <!-- ═══ GALLERY VIEW ═══ -->
+  <!-- GALLERY -->
   <div id="view-gallery" class="view">
     <div class="view-scroll">
-      <div class="section-title">🖼️ My Smile Gallery</div>
-      <p class="section-sub">Photos you've shared for analysis are stored here.</p>
-      <button class="action-btn img-btn gallery-upload" onclick="document.getElementById('galleryInput').click()">
-        <span class="btn-icon">📷</span>
-        <span class="btn-label">Add new photo</span>
-      </button>
-      <div class="gallery-grid" id="galleryGrid">
-        <div class="gallery-empty">No photos yet — upload a smile photo to get started.</div>
-      </div>
+      <h2>Smile Gallery</h2>
+      <div id="galleryGrid"></div>
     </div>
   </div>
 
-  <!-- ═══ ADMIN VIEW ═══ -->
+  <!-- ADMIN -->
   <div id="view-admin" class="view">
     <div class="view-scroll">
-      <div class="section-title">⚙️ Bookings Dashboard</div>
-      <table class="admin-table">
-        <thead><tr><th>#</th><th>Patient</th><th>Appointment</th><th>Actions</th></tr></thead>
+      <h2>Bookings</h2>
+      <table>
         <tbody id="bookingBody"></tbody>
       </table>
-      <p id="emptyMsg" class="empty">No bookings yet.</p>
     </div>
   </div>
 
 </div>
 
-<input type="file" id="imgInput"     accept="image/*" style="display:none" onchange="handleImageUpload(event)"/>
-<input type="file" id="galleryInput" accept="image/*" style="display:none" onchange="handleGalleryUpload(event)"/>
-<script src="script.js"></script> 
-  <script>
-let pesapalData = {};
+<script src="script.js"></script>
 
-/* NAV */
+<script>
+
+/* NAVIGATION */
 function showView(view) {
-  document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
-  document.getElementById("view-" + view).classList.add("active");
+  document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+  document.getElementById("view-" + view).classList.add("active");
 }
 
 /* OPEN MODAL */
+let pesapalData = {};
+
 function openPesapal(amount) {
-  pesapalData.amount = amount;
-  document.getElementById("pesapalAmount").innerText = "Amount: KES " + amount;
-  document.getElementById("pesapalModal").classList.remove("hidden");
+  pesapalData.amount = amount;
+  document.getElementById("pesapalAmount").innerText = "Amount: KES " + amount;
+  document.getElementById("pesapalModal").classList.remove("hidden");
 }
 
 /* CLOSE */
 function closePesapal() {
-  document.getElementById("pesapalModal").classList.add("hidden");
+  document.getElementById("pesapalModal").classList.add("hidden");
 }
 
-/* PAY */
+/* PAYMENT */
 async function submitPesapal() {
-  pesapalData.name = document.getElementById("pesapalName").value;
-  pesapalData.email = document.getElementById("pesapalEmail").value;
-  pesapalData.phone = document.getElementById("pesapalPhone").value;
 
-  if (!pesapalData.name || !pesapalData.email) {
-    alert("Fill required fields");
-    return;
-  }
+  const btn = document.getElementById("payBtn");
 
-  const res = await fetch("/api/pay", {
-    method: "POST",
-    headers: {"Content-Type":"application/json"},
-    body: JSON.stringify(pesapalData)
-  });
+  pesapalData.name = document.getElementById("pesapalName").value.trim();
+  pesapalData.email = document.getElementById("pesapalEmail").value.trim();
+  pesapalData.phone = document.getElementById("pesapalPhone").value.trim();
 
-  const data = await res.json();
+  if (!pesapalData.name || !pesapalData.email || !pesapalData.phone) {
+    alert("All fields are required");
+    return;
+  }
 
-  if (data.redirect_url) {
-    window.location.href = data.redirect_url;
-  } else {
-    alert("Payment failed");
-  }
+  if (!pesapalData.phone.startsWith("+254")) {
+    alert("Use format +254...");
+    return;
+  }
+
+  try {
+    btn.innerText = "Processing...";
+    btn.disabled = true;
+
+    const res = await fetch("/api/pay", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(pesapalData)
+    });
+
+    const data = await res.json();
+
+    if (data.redirect_url) {
+      window.location.href = data.redirect_url;
+    } else {
+      throw new Error();
+    }
+
+  } catch (err) {
+    alert("Payment failed");
+    btn.innerText = "Proceed →";
+    btn.disabled = false;
+  }
 }
 
-/* SUCCESS RETURN */
+/* SUCCESS CHECK */
 window.addEventListener("load", () => {
-  const status = new URLSearchParams(window.location.search).get("status");
+  const status = new URLSearchParams(window.location.search).get("status");
 
-  if (status === "COMPLETED") {
-    alert("✅ Payment successful!");
-  }
+  if (status === "COMPLETED") {
+    alert("✅ Payment successful!");
+  }
 });
+
+/* PLACEHOLDERS */
+function sendMessage(){ alert("Chat not connected yet"); }
+function diagnose(){ alert("Diagnosis logic missing"); }
+
 </script>
+
 </body>
 </html>
