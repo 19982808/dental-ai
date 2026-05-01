@@ -21,9 +21,9 @@
     </div>
 
     <div class="hdr-btns">
-      <button class="hdr-btn" onclick="showView('payment')" title="Payment">💳</button>
-      <button class="hdr-btn" onclick="showView('gallery')" title="Gallery">🖼️</button>
-      <button class="hdr-btn" onclick="showView('admin')" title="Admin">⚙️</button>
+      <button class="hdr-btn" onclick="showView('payment')">💳</button>
+      <button class="hdr-btn" onclick="showView('gallery')">🖼️</button>
+      <button class="hdr-btn" onclick="showView('admin')">⚙️</button>
     </div>
   </div>
 
@@ -68,10 +68,9 @@
     <div class="view-scroll">
       <h2>Consultation Plans</h2>
 
-      <div class="payment-cards">
-        <button onclick="openPesapal(500)">Basic – KES 500</button>
-        <button onclick="openPesapal(1500)">Premium – KES 1500</button>
-      </div>
+      <!-- ✅ FIXED: correct ID -->
+      <div id="paymentCards" class="payment-cards"></div>
+
     </div>
   </div>
 
@@ -79,7 +78,7 @@
   <div id="pesapalModal" class="modal hidden">
     <div class="modal-content">
 
-      <h3>Complete Payment</h3>
+      <h3 id="payFormTitle">Complete Payment</h3>
 
       <input id="pesapalName" placeholder="Full Name"/>
       <input id="pesapalEmail" placeholder="Email"/>
@@ -116,43 +115,32 @@
 <script src="script.js"></script>
 
 <script>
-
-/* NAVIGATION */
-function showView(view) {
-  document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
-  document.getElementById("view-" + view).classList.add("active");
-}
-
-/* OPEN MODAL */
+/* PESAPAL */
 let pesapalData = {};
 
-function openPesapal(amount) {
-  pesapalData.amount = amount;
-  document.getElementById("pesapalAmount").innerText = "Amount: KES " + amount;
+function openPesapal(plan) {
+  pesapalData = plan;
+
+  document.getElementById("payFormTitle").innerText = plan.title;
+  document.getElementById("pesapalAmount").innerText =
+    "Amount: " + plan.currency + " " + plan.price;
+
   document.getElementById("pesapalModal").classList.remove("hidden");
 }
 
-/* CLOSE */
 function closePesapal() {
   document.getElementById("pesapalModal").classList.add("hidden");
 }
 
-/* PAYMENT */
 async function submitPesapal() {
-
   const btn = document.getElementById("payBtn");
 
-  pesapalData.name = document.getElementById("pesapalName").value.trim();
+  pesapalData.name  = document.getElementById("pesapalName").value.trim();
   pesapalData.email = document.getElementById("pesapalEmail").value.trim();
   pesapalData.phone = document.getElementById("pesapalPhone").value.trim();
 
   if (!pesapalData.name || !pesapalData.email || !pesapalData.phone) {
     alert("All fields are required");
-    return;
-  }
-
-  if (!pesapalData.phone.startsWith("+254")) {
-    alert("Use format +254...");
     return;
   }
 
@@ -174,26 +162,12 @@ async function submitPesapal() {
       throw new Error();
     }
 
-  } catch (err) {
+  } catch {
     alert("Payment failed");
     btn.innerText = "Proceed →";
     btn.disabled = false;
   }
 }
-
-/* SUCCESS CHECK */
-window.addEventListener("load", () => {
-  const status = new URLSearchParams(window.location.search).get("status");
-
-  if (status === "COMPLETED") {
-    alert("✅ Payment successful!");
-  }
-});
-
-/* PLACEHOLDERS */
-function sendMessage(){ alert("Chat not connected yet"); }
-function diagnose(){ alert("Diagnosis logic missing"); }
-
 </script>
 
 </body>
