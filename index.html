@@ -118,12 +118,23 @@
       </div>
     </div>
   </div>
-<form id="payForm">
-  <input name="name" placeholder="Full Name" required />
-  <input name="email" placeholder="Email" required />
-  <input name="amount" type="number" placeholder="Amount (KES)" required />
-  <button type="submit">Pay with Pesapal</button>
-</form>
+  <!-- ===== PESAPAL MODAL ===== -->
+  <div id="pesapalModal" class="modal hidden">
+    <div class="modal-content">
+      <h3>Complete Payment</h3>
+
+      <input id="pesapalName" placeholder="Full Name"/>
+      <input id="pesapalEmail" placeholder="Email"/>
+      <input id="pesapalPhone" placeholder="Phone (+254...)"/>
+
+      <div id="pesapalAmount"></div>
+
+      <button class="teal-btn" onclick="submitPesapal()">Proceed →</button>
+      <button class="close-btn" onclick="closePesapal()">Cancel</button>
+    </div>
+  </div>
+
+</div>
 
 <script>
 document.getElementById("payForm").addEventListener("submit", async (e) => {
@@ -178,6 +189,62 @@ document.getElementById("payForm").addEventListener("submit", async (e) => {
 
 <input type="file" id="imgInput"     accept="image/*" style="display:none" onchange="handleImageUpload(event)"/>
 <input type="file" id="galleryInput" accept="image/*" style="display:none" onchange="handleGalleryUpload(event)"/>
-<script src="script.js"></script>
+<script src="script.js"></script> 
+  <script>
+let pesapalData = {};
+
+/* NAV */
+function showView(view) {
+  document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+  document.getElementById("view-" + view).classList.add("active");
+}
+
+/* OPEN MODAL */
+function openPesapal(amount) {
+  pesapalData.amount = amount;
+  document.getElementById("pesapalAmount").innerText = "Amount: KES " + amount;
+  document.getElementById("pesapalModal").classList.remove("hidden");
+}
+
+/* CLOSE */
+function closePesapal() {
+  document.getElementById("pesapalModal").classList.add("hidden");
+}
+
+/* PAY */
+async function submitPesapal() {
+  pesapalData.name = document.getElementById("pesapalName").value;
+  pesapalData.email = document.getElementById("pesapalEmail").value;
+  pesapalData.phone = document.getElementById("pesapalPhone").value;
+
+  if (!pesapalData.name || !pesapalData.email) {
+    alert("Fill required fields");
+    return;
+  }
+
+  const res = await fetch("/api/pay", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify(pesapalData)
+  });
+
+  const data = await res.json();
+
+  if (data.redirect_url) {
+    window.location.href = data.redirect_url;
+  } else {
+    alert("Payment failed");
+  }
+}
+
+/* SUCCESS RETURN */
+window.addEventListener("load", () => {
+  const status = new URLSearchParams(window.location.search).get("status");
+
+  if (status === "COMPLETED") {
+    alert("✅ Payment successful!");
+  }
+});
+</script>
 </body>
 </html>
