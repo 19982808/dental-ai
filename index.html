@@ -4,11 +4,196 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Rynar Dental AI</title>
-
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="style.css"/>
-</head>
 
+  <style>
+    /* ── Pesapal Modal ── */
+    .pp-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.55);
+      z-index: 999;
+      align-items: center;
+      justify-content: center;
+    }
+    .pp-overlay.open { display: flex; }
+
+    .pp-modal {
+      background: #fff;
+      border-radius: 18px;
+      padding: 28px 24px 24px;
+      width: min(92vw, 400px);
+      box-shadow: 0 24px 60px rgba(0,0,0,.25);
+      position: relative;
+      animation: ppSlideUp .28s cubic-bezier(.34,1.56,.64,1) both;
+    }
+    @keyframes ppSlideUp {
+      from { opacity:0; transform: translateY(30px) scale(.97); }
+      to   { opacity:1; transform: translateY(0)   scale(1);   }
+    }
+
+    .pp-close {
+      position: absolute;
+      top: 14px; right: 16px;
+      background: none;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      color: #888;
+      line-height: 1;
+    }
+    .pp-close:hover { color: #333; }
+
+    .pp-title {
+      font-family: 'Poppins', sans-serif;
+      font-size: 18px;
+      font-weight: 600;
+      margin: 0 0 4px;
+      color: #1a1a2e;
+    }
+    .pp-sub {
+      font-size: 13px;
+      color: #888;
+      margin: 0 0 20px;
+    }
+
+    .pp-field {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 10px;
+      font-family: 'Poppins', sans-serif;
+      font-size: 14px;
+      margin-bottom: 12px;
+      box-sizing: border-box;
+      transition: border-color .2s;
+      outline: none;
+    }
+    .pp-field:focus { border-color: #0d9488; }
+
+    .pp-amount-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .pp-currency {
+      font-weight: 600;
+      font-size: 14px;
+      color: #555;
+      white-space: nowrap;
+    }
+    .pp-field.amount { margin-bottom: 0; flex: 1; }
+
+    .pp-plan-badge {
+      background: #f0fdfa;
+      border: 1.5px solid #99f6e4;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #0f766e;
+      font-weight: 500;
+      margin-bottom: 16px;
+    }
+
+    .pp-btn {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg,#0d9488,#0f766e);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-family: 'Poppins', sans-serif;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .2s, transform .15s;
+    }
+    .pp-btn:hover  { opacity: .92; }
+    .pp-btn:active { transform: scale(.98); }
+    .pp-btn:disabled { opacity: .6; cursor: not-allowed; }
+
+    .pp-note {
+      text-align: center;
+      font-size: 12px;
+      color: #aaa;
+      margin: 12px 0 0;
+    }
+
+    /* ── Confirmation state ── */
+    .pp-confirm {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 10px 0 4px;
+    }
+    .pp-confirm.show { display: flex; }
+    .pp-confirm-icon {
+      font-size: 52px;
+      margin-bottom: 14px;
+      animation: popIn .4s cubic-bezier(.34,1.56,.64,1) both;
+    }
+    @keyframes popIn {
+      from { transform: scale(0); opacity: 0; }
+      to   { transform: scale(1); opacity: 1; }
+    }
+    .pp-confirm h3 {
+      font-size: 18px;
+      font-weight: 600;
+      margin: 0 0 8px;
+      color: #1a1a2e;
+    }
+    .pp-confirm p {
+      font-size: 13px;
+      color: #666;
+      line-height: 1.55;
+      margin: 0 0 20px;
+    }
+
+    /* ── Pesapal trigger button (inside payment cards) ── */
+    .pesapal-card {
+      background: linear-gradient(135deg,#0d9488 0%,#0f766e 100%);
+      border-radius: 16px;
+      padding: 20px;
+      color: #fff;
+      cursor: pointer;
+      border: none;
+      width: 100%;
+      text-align: left;
+      margin-top: 12px;
+      font-family: 'Poppins', sans-serif;
+      transition: transform .18s, box-shadow .18s;
+      box-shadow: 0 6px 24px rgba(13,148,136,.3);
+    }
+    .pesapal-card:hover  { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(13,148,136,.4); }
+    .pesapal-card:active { transform: translateY(0); }
+    .pesapal-card-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+    .pesapal-logo { font-size: 22px; }
+    .pesapal-card-title { font-size: 16px; font-weight: 600; }
+    .pesapal-card-sub   { font-size: 13px; opacity: .85; }
+    .pesapal-pills {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+    .pesapal-pill {
+      background: rgba(255,255,255,.2);
+      border-radius: 20px;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+  </style>
+</head>
 <body>
 <div class="app">
 
@@ -19,15 +204,18 @@
       <h1>Rynar Dental AI</h1>
       <p>Premium Smile Experience</p>
     </div>
-
     <div class="hdr-btns">
-      <button class="hdr-btn" onclick="showView('payment')">💳</button>
-      <button class="hdr-btn" onclick="showView('gallery')">🖼️</button>
-      <button class="hdr-btn" onclick="showView('admin')">⚙️</button>
+      <button class="hdr-btn" id="jazzBtn" onclick="toggleJazz()" title="Background jazz">
+        <div class="eq"><span></span><span></span><span></span><span></span></div>
+      </button>
+      <button class="hdr-btn on" id="voiceBtn" onclick="toggleVoice()" title="Toggle voice">🔊</button>
+      <button class="hdr-btn" onclick="showView('payment')" title="Payment">💳</button>
+      <button class="hdr-btn" onclick="showView('gallery')" title="Image Gallery">🖼️</button>
+      <button class="hdr-btn" onclick="showView('admin')" title="Admin">⚙️</button>
     </div>
   </div>
 
-  <!-- NAV -->
+  <!-- NAV TABS -->
   <div class="nav-tabs">
     <button class="nav-tab active" onclick="showView('chat')">💬 Chat</button>
     <button class="nav-tab" onclick="showView('symptom')">🩺 Symptoms</button>
@@ -35,140 +223,262 @@
     <button class="nav-tab" onclick="showView('payment')">💳 Pay</button>
   </div>
 
-  <!-- CHAT -->
+  <!-- ═══ CHAT VIEW ═══ -->
   <div id="view-chat" class="view active">
     <div id="chat-box"></div>
-
+    <div id="typing-indicator" class="typing hidden">
+      <span></span><span></span><span></span>
+    </div>
     <div class="input-area">
-      <input id="user-input" placeholder="Type message..." />
-      <button onclick="sendMessage()">Send</button>
+      <div class="text-row">
+        <input type="text" id="user-input"
+               placeholder="Type your message here…"
+               onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}"
+               autocomplete="off"/>
+        <button class="send-btn" onclick="sendMessage()" title="Send">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+               stroke-linecap="round" stroke-linejoin="round" width="17" height="17">
+            <line x1="22" y1="2" x2="11" y2="13"/>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+        </button>
+      </div>
+      <div class="action-row">
+        <button class="action-btn mic-btn" id="micBtn" onclick="startListening()">
+          <span class="btn-icon">🎤</span>
+          <span class="btn-label">Tap to speak</span>
+        </button>
+        <button class="action-btn img-btn" onclick="document.getElementById('imgInput').click()">
+          <span class="btn-icon">📷</span>
+          <span class="btn-label">Upload smile</span>
+        </button>
+      </div>
     </div>
   </div>
 
-  <!-- SYMPTOMS -->
+  <!-- ═══ SYMPTOM CHECKER VIEW ═══ -->
   <div id="view-symptom" class="view">
     <div class="view-scroll">
-      <h2>Symptoms Checker</h2>
-      <div id="symptomGrid"></div>
-      <button onclick="diagnose()">Analyse</button>
-      <div id="diagnosisResult"></div>
+      <div class="section-title">🩺 What are you experiencing?</div>
+      <p class="section-sub">Select all that apply — I'll help figure out what's going on.</p>
+      <div class="symptom-grid" id="symptomGrid"></div>
+      <div class="symptom-other">
+        <input type="text" id="symptomOther" placeholder="Or describe in your own words…"/>
+      </div>
+      <button class="teal-btn" onclick="diagnose()">Analyse My Symptoms →</button>
+      <div id="diagnosisResult" class="diagnosis-box hidden"></div>
     </div>
   </div>
 
-  <!-- GUIDES -->
+  <!-- ═══ GUIDES VIEW ═══ -->
   <div id="view-guides" class="view">
     <div class="view-scroll">
-      <h2>Treatment Guides</h2>
-      <div id="guidesGrid"></div>
+      <div class="section-title">📚 Treatment Guides</div>
+      <p class="section-sub">Tap any treatment to learn what it involves.</p>
+      <div class="guides-grid" id="guidesGrid"></div>
     </div>
   </div>
 
-  <!-- PAYMENT -->
+  <!-- ═══ GUIDE DETAIL VIEW ═══ -->
+  <div id="view-guide-detail" class="view">
+    <div class="view-scroll">
+      <button class="back-link" onclick="showView('guides')">← Back to Guides</button>
+      <div id="guideDetail"></div>
+      <button class="teal-btn" onclick="bookFromGuide()">Book an Appointment →</button>
+    </div>
+  </div>
+
+  <!-- ═══ PAYMENT VIEW ═══ -->
   <div id="view-payment" class="view">
     <div class="view-scroll">
-      <h2>Consultation Plans</h2>
+      <div class="section-title">💳 Consultation Options</div>
+      <p class="section-sub">Choose how you'd like to connect with our dental team.</p>
+      <div class="payment-cards" id="paymentCards"></div>
 
-      <!-- ✅ FIXED: correct ID -->
-      <div id="paymentCards" class="payment-cards"></div>
+      <!-- ── Pesapal Card Button ── -->
+      <button class="pesapal-card" onclick="openPesapal()">
+        <div class="pesapal-card-header">
+          <span class="pesapal-logo">🔒</span>
+          <span class="pesapal-card-title">Pay Securely via Pesapal</span>
+        </div>
+        <div class="pesapal-card-sub">Card, M-Pesa, Bank Transfer — all in one checkout</div>
+        <div class="pesapal-pills">
+          <span class="pesapal-pill">💳 Visa/Mastercard</span>
+          <span class="pesapal-pill">📱 M-Pesa</span>
+          <span class="pesapal-pill">🏦 Bank Transfer</span>
+          <span class="pesapal-pill">⚡ Instant</span>
+        </div>
+      </button>
 
+      <!-- WhatsApp booking form (existing) -->
+      <div class="payment-form hidden" id="paymentForm">
+        <div class="section-title" id="payFormTitle">Complete Booking</div>
+        <input type="text" class="form-input" id="payName" placeholder="Your full name"/>
+        <input type="text" class="form-input" id="payPhone" placeholder="WhatsApp number (+254…)"/>
+        <input type="email" class="form-input" id="payEmail" placeholder="Email address"/>
+        <div class="selected-plan" id="selectedPlanDisplay"></div>
+        <button class="teal-btn" onclick="processPayment()">Confirm & Pay via WhatsApp →</button>
+        <p class="pay-note">Payment link will be sent to your WhatsApp. We accept M-Pesa, card, and bank transfer.</p>
+      </div>
     </div>
   </div>
 
-  <!-- PESAPAL MODAL -->
-  <div id="pesapalModal" class="modal hidden">
-    <div class="modal-content">
-
-      <h3 id="payFormTitle">Complete Payment</h3>
-
-      <input id="pesapalName" placeholder="Full Name"/>
-      <input id="pesapalEmail" placeholder="Email"/>
-      <input id="pesapalPhone" placeholder="Phone (+254...)"/>
-
-      <div id="pesapalAmount"></div>
-
-      <button id="payBtn" class="teal-btn" onclick="submitPesapal()">Proceed →</button>
-      <button class="close-btn" onclick="closePesapal()">Cancel</button>
-
-    </div>
-  </div>
-
-  <!-- GALLERY -->
+  <!-- ═══ GALLERY VIEW ═══ -->
   <div id="view-gallery" class="view">
     <div class="view-scroll">
-      <h2>Smile Gallery</h2>
-      <div id="galleryGrid"></div>
+      <div class="section-title">🖼️ My Smile Gallery</div>
+      <p class="section-sub">Photos you've shared for analysis are stored here.</p>
+      <button class="action-btn img-btn gallery-upload" onclick="document.getElementById('galleryInput').click()">
+        <span class="btn-icon">📷</span>
+        <span class="btn-label">Add new photo</span>
+      </button>
+      <div class="gallery-grid" id="galleryGrid">
+        <div class="gallery-empty">No photos yet — upload a smile photo to get started.</div>
+      </div>
     </div>
   </div>
 
-  <!-- ADMIN -->
+  <!-- ═══ ADMIN VIEW ═══ -->
   <div id="view-admin" class="view">
     <div class="view-scroll">
-      <h2>Bookings</h2>
-      <table>
+      <div class="section-title">⚙️ Bookings Dashboard</div>
+      <table class="admin-table">
+        <thead><tr><th>#</th><th>Patient</th><th>Appointment</th><th>Actions</th></tr></thead>
         <tbody id="bookingBody"></tbody>
       </table>
+      <p id="emptyMsg" class="empty">No bookings yet.</p>
     </div>
   </div>
 
+</div><!-- /.app -->
+
+<!-- ═══ PESAPAL MODAL ═══ -->
+<div class="pp-overlay" id="ppOverlay" onclick="closePesapalOnBackdrop(event)">
+  <div class="pp-modal" role="dialog" aria-modal="true" aria-labelledby="ppDialogTitle">
+    <button class="pp-close" onclick="closePesapal()" aria-label="Close">✕</button>
+
+    <!-- ── Step 1: Form ── -->
+    <div id="ppForm">
+      <p class="pp-title" id="ppDialogTitle">Complete Your Payment</p>
+      <p class="pp-sub">Secure checkout via Pesapal</p>
+
+      <div class="pp-plan-badge" id="ppPlanBadge">🦷 General Consultation</div>
+
+      <input class="pp-field" id="ppName"  type="text"   placeholder="Full name"         autocomplete="name"/>
+      <input class="pp-field" id="ppEmail" type="email"  placeholder="Email address"     autocomplete="email"/>
+
+      <div class="pp-amount-row">
+        <span class="pp-currency">KES</span>
+        <input class="pp-field amount" id="ppAmount" type="number" min="1" placeholder="Amount"/>
+      </div>
+
+      <button class="pp-btn" id="ppSubmitBtn" onclick="submitPesapal()">
+        Pay Now →
+      </button>
+      <p class="pp-note">🔒 Encrypted &amp; secure · Powered by Pesapal</p>
+    </div>
+
+    <!-- ── Step 2: Confirmation ── -->
+    <div class="pp-confirm" id="ppConfirm">
+      <div class="pp-confirm-icon">✅</div>
+      <h3>Payment Initiated!</h3>
+      <p id="ppConfirmText">
+        We've sent a secure payment link to your email.<br/>
+        Complete payment on the Pesapal page that opens.
+      </p>
+      <button class="pp-btn" onclick="closePesapal()">Done</button>
+    </div>
+  </div>
 </div>
 
+<input type="file" id="imgInput"     accept="image/*" style="display:none" onchange="handleImageUpload(event)"/>
+<input type="file" id="galleryInput" accept="image/*" style="display:none" onchange="handleGalleryUpload(event)"/>
 <script src="script.js"></script>
 
 <script>
-/* PESAPAL */
-let pesapalData = {};
+  /* ─── Pesapal Modal Logic ─── */
 
-function openPesapal(plan) {
-  pesapalData = plan;
+  // Call this from anywhere to pre-fill the plan label + amount
+  function openPesapal(planLabel, amount) {
+    const badge  = document.getElementById('ppPlanBadge');
+    const amtEl  = document.getElementById('ppAmount');
 
-  document.getElementById("payFormTitle").innerText = plan.title;
-  document.getElementById("pesapalAmount").innerText =
-    "Amount: " + plan.currency + " " + plan.price;
+    badge.textContent  = planLabel ? '🦷 ' + planLabel : '🦷 General Consultation';
+    amtEl.value        = amount    ? amount             : '';
 
-  document.getElementById("pesapalModal").classList.remove("hidden");
-}
+    // Reset to form step
+    document.getElementById('ppForm').style.display    = '';
+    document.getElementById('ppConfirm').classList.remove('show');
 
-function closePesapal() {
-  document.getElementById("pesapalModal").classList.add("hidden");
-}
-
-async function submitPesapal() {
-  const btn = document.getElementById("payBtn");
-
-  pesapalData.name  = document.getElementById("pesapalName").value.trim();
-  pesapalData.email = document.getElementById("pesapalEmail").value.trim();
-  pesapalData.phone = document.getElementById("pesapalPhone").value.trim();
-
-  if (!pesapalData.name || !pesapalData.email || !pesapalData.phone) {
-    alert("All fields are required");
-    return;
+    document.getElementById('ppOverlay').classList.add('open');
+    document.getElementById('ppName').focus();
   }
 
-  try {
-    btn.innerText = "Processing...";
-    btn.disabled = true;
+  function closePesapal() {
+    document.getElementById('ppOverlay').classList.remove('open');
+  }
 
-    const res = await fetch("/api/pay", {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify(pesapalData)
-    });
+  function closePesapalOnBackdrop(e) {
+    if (e.target === document.getElementById('ppOverlay')) closePesapal();
+  }
 
-    const data = await res.json();
+  // Close on Escape key
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closePesapal();
+  });
 
-    if (data.redirect_url) {
-      window.location.href = data.redirect_url;
-    } else {
-      throw new Error();
+  async function submitPesapal() {
+    const name   = document.getElementById('ppName').value.trim();
+    const email  = document.getElementById('ppEmail').value.trim();
+    const amount = document.getElementById('ppAmount').value.trim();
+
+    if (!name || !email || !amount) {
+      alert('Please fill in all fields before continuing.');
+      return;
+    }
+    if (!/\S+@\S+\.\S+/.test(email)) {
+      alert('Please enter a valid email address.');
+      return;
     }
 
-  } catch {
-    alert("Payment failed");
-    btn.innerText = "Proceed →";
-    btn.disabled = false;
-  }
-}
-</script>
+    const btn = document.getElementById('ppSubmitBtn');
+    btn.disabled     = true;
+    btn.textContent  = 'Processing…';
 
+    try {
+      const res = await fetch('/api/pay', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ name, email, amount })
+      });
+
+      const result = await res.json();
+
+      if (result.redirect_url) {
+        // Open Pesapal in a new tab, show confirmation in modal
+        window.open(result.redirect_url, '_blank');
+        document.getElementById('ppConfirmText').innerHTML =
+          `A Pesapal payment page has opened in a new tab.<br/>
+           Complete payment there — we'll confirm once received.`;
+      } else {
+        // Fallback: still show confirmation with contact note
+        document.getElementById('ppConfirmText').innerHTML =
+          `Your request has been received.<br/>
+           Our team will send a payment link to <strong>${email}</strong> shortly.`;
+      }
+
+      // Switch to confirmation step
+      document.getElementById('ppForm').style.display = 'none';
+      document.getElementById('ppConfirm').classList.add('show');
+
+    } catch (err) {
+      alert('Something went wrong. Please try again or contact us directly.');
+      console.error('Pesapal error:', err);
+    } finally {
+      btn.disabled    = false;
+      btn.textContent = 'Pay Now →';
+    }
+  }
+</script>
 </body>
 </html>
